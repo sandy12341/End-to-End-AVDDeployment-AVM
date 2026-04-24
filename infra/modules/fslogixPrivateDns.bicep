@@ -39,16 +39,29 @@ var privateEndpointName = 'pe-${storageAccountName}-file'
 // Use environment() to stay compatible with sovereign clouds (Azure Government, China, etc.)
 var privateDnsZoneName = 'privatelink.file.${environment().suffixes.storage}'
 
-// ── 1. Private Endpoint ───────────────────────────────────────────────────────
+module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.0' = if (privateDnsZoneMode == 'CreateNew') {
+  name: take('avm.res.network.private-dns-zone.${storageAccountName}.file', 64)
+  params: {
+    name: privateDnsZoneName
+    location: 'global'
+    tags: tags
+    virtualNetworkLinks: [
+      {
+        name: 'link-${last(split(vnetId, '/'))}'
+        virtualNetworkResourceId: vnetId
+        registrationEnabled: false
+      }
+    ]
+    enableTelemetry: false
+  }
+}
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
-  name: privateEndpointName
-  location: location
-  tags: tags
-  properties: {
-    subnet: {
-      id: privateEndpointSubnetId
-    }
+module privateEndpoint 'br/public:avm/res/network/private-endpoint:0.11.0' = {
+  name: take('avm.res.network.private-endpoint.${privateEndpointName}', 64)
+  params: {
+    name: privateEndpointName
+    location: location
+    subnetResourceId: privateEndpointSubnetId
     privateLinkServiceConnections: [
       {
         name: privateEndpointName
@@ -60,58 +73,25 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
         }
       }
     ]
-  }
-}
-
-// ── 2. Private DNS Zone ───────────────────────────────────────────────────────
-
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (privateDnsZoneMode == 'CreateNew') {
-  name: privateDnsZoneName
-  location: 'global'
-  tags: tags
-}
-
-// ── 3. VNet Link ─────────────────────────────────────────────────────────────
-// Links the DNS zone to the spoke VNet so all resources in the VNet
-// resolve privatelink.file.core.windows.net via Azure Private DNS.
-
-resource vnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (privateDnsZoneMode == 'CreateNew') {
-  parent: privateDnsZone
-  name: 'link-${last(split(vnetId, '/'))}'
-  location: 'global'
-  tags: tags
-  properties: {
-    virtualNetwork: {
-      id: vnetId
-    }
-    registrationEnabled: false
-  }
-}
-
-// ── 4. DNS Zone Group ─────────────────────────────────────────────────────────
-// Attaches the DNS zone to the private endpoint.
-// Azure automatically creates/removes the A record in the zone
-// when the endpoint is provisioned or deleted.
-
-resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (privateDnsZoneMode == 'CreateNew') {
-  parent: privateEndpoint
-  name: 'fslogix-dns-group'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'privatelink-file-core-windows-net'
-        properties: {
-          privateDnsZoneId: privateDnsZone.id
+    privateDnsZoneGroup: privateDnsZoneMode == 'CreateNew'
+      ? {
+          name: 'fslogix-dns-group'
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: privateDnsZone!.outputs.resourceId
+            }
+          ]
         }
-      }
-    ]
+      : null
+    tags: tags
+    enableTelemetry: false
   }
 }
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
-output privateEndpointId string = privateEndpoint.id
-output privateEndpointName string = privateEndpoint.name
+output privateEndpointId string = privateEndpoint.outputs.resourceId
+output privateEndpointName string = privateEndpoint.outputs.name
 // Private IP is assigned by Azure after provisioning — not directly available
 // as a Bicep compile-time value. Retrieve post-deployment via:
 //   az network private-endpoint show -n <name> -g <rg> --query 'customDnsConfigs[0].ipAddresses[0]'

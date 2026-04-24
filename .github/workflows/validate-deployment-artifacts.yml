@@ -1,0 +1,76 @@
+name: Validate Deployment Artifacts
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'README.md'
+      - 'docs/**'
+      - 'bicepconfig.json'
+      - '.github/workflows/validate-deployment-artifacts.yml'
+  push:
+    branches:
+      - master
+    paths:
+      - 'infra/**'
+      - 'README.md'
+      - 'docs/**'
+      - 'bicepconfig.json'
+      - '.github/workflows/validate-deployment-artifacts.yml'
+
+jobs:
+  validate:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure CLI login not required for build
+        shell: pwsh
+        run: az version
+
+      - name: Build deployment artifacts
+        shell: pwsh
+        run: ./infra/scripts/Build-DeploymentArtifacts.ps1
+
+      - name: Validate generated artifacts exist
+        shell: pwsh
+        run: |
+          $requiredFiles = @(
+            'infra/azuredeploy.json',
+            'infra/managedapp/dist/mainTemplate.json',
+            'infra/managedapp/dist/deployDefinition.json',
+            'infra/managedapp/dist/app.zip',
+            'infra/managedapp/dist/package/mainTemplate.json',
+            'infra/managedapp/dist/package/createUiDefinition.json'
+          )
+
+          foreach ($requiredFile in $requiredFiles) {
+            if (-not (Test-Path $requiredFile)) {
+              throw "Missing required artifact: $requiredFile"
+            }
+          }
+
+      - name: Validate app.zip contents
+        shell: pwsh
+        run: |
+          $zipPath = 'infra/managedapp/dist/app.zip'
+          $extractPath = Join-Path $env:RUNNER_TEMP 'managedapp-package'
+
+          if (Test-Path $extractPath) {
+            Remove-Item -Recurse -Force $extractPath
+          }
+
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath
+
+          $requiredFiles = @(
+            'mainTemplate.json',
+            'createUiDefinition.json'
+          )
+
+          foreach ($requiredFile in $requiredFiles) {
+            if (-not (Test-Path (Join-Path $extractPath $requiredFile))) {
+              throw "Managed app package is missing $requiredFile"
+            }
+          }

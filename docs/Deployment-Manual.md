@@ -1,8 +1,10 @@
 # AVD Landing Zone — Deployment Manual
 
-> **Version:** 1.1  
-> **Last Updated:** March 26, 2026  
-> **Repository:** `sandy12341/AVD-Landing-Zone`
+> **Version:** 1.2  
+> **Last Updated:** April 24, 2026  
+> **Repository:** `sandy12341/End-to-End-AVDDeployment-AVM`
+
+This repo now treats the Azure Managed Application as the supported public deployment path. The direct-template path documented in this manual remains important, but only as an engineering validation lane, parity check, and break-glass troubleshooting path.
 
 ---
 
@@ -113,12 +115,12 @@ The deployment is fully automated — a single ARM template deployment creates a
 
 ### 2.2 Option A: Deploy to Azure (One-Click Portal Deployment)
 
-This is the recommended method. It requires **no tooling** — just a browser.
+This direct-template path is retained for engineering validation. The supported public customer path is the Azure Managed Application published from this repo.
 
-1. **Click the Deploy to Azure button** from the repo README or the MVP Catalog Portal:
+1. **Use the internal validation Deploy to Azure link** only when you need parity testing against the managed-app package:
 
    ```
-  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-End-AVD-Deployment%2Fmaster%2Finfra%2Fazuredeploy.json
+  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json
    ```
 
 2. **Fill in the required parameters** on the Azure Portal custom deployment form:
@@ -148,6 +150,8 @@ This is the recommended method. It requires **no tooling** — just a browser.
 
 ### 2.3 Option B: Azure CLI Deployment
 
+This path is also intended for engineering validation.
+
 ```bash
 # 1. Create a resource group
 az group create --name rg-avd-myapp-dev --location westus2
@@ -155,7 +159,7 @@ az group create --name rg-avd-myapp-dev --location westus2
 # 2. Deploy the template (from GitHub raw URL — same as portal)
 az deployment group create \
   --resource-group rg-avd-myapp-dev \
-  --template-uri "https://raw.githubusercontent.com/sandy12341/End-End-AVD-Deployment/master/infra/azuredeploy.json" \
+  --template-uri "https://raw.githubusercontent.com/sandy12341/End-to-End-AVDDeployment-AVM/master/infra/azuredeploy.json" \
   --parameters avdMode='PooledDesktopAndRemoteApp' \
   --parameters deploymentPrefix='myapp' \
                environment='dev' \
@@ -171,8 +175,8 @@ az deployment group create \
 
 ```bash
 # Clone the repo
-git clone https://github.com/sandy12341/AVD-Landing-Zone.git
-cd AVD-Landing-Zone
+git clone https://github.com/sandy12341/End-to-End-AVDDeployment-AVM.git
+cd End-to-End-AVDDeployment-AVM
 
 # Deploy from local Bicep
 az deployment group create \
@@ -241,37 +245,41 @@ main.bicep (orchestrator)
 ## 3. Repository Structure & Role of Each File
 
 ```
-AVD-Landing-Zone/
-├── README.md                          # Repo overview, architecture diagram, quick start
+End-to-End-AVDDeployment-AVM/
+├── README.md                          # Repo overview, deployment model, AVM status, quick start
 ├── .gitignore                         # Git ignore rules
 ├── docs/
 │   └── Deployment-Manual.md           # This document
 └── infra/
-    ├── main.bicep                     # Main orchestrator — entry point for all deployments
+  ├── main.bicep                     # Thin direct-template wrapper over the shared solution core
     ├── main.parameters.json           # Default parameter values for CLI/PowerShell deployments
     ├── samples/                       # Mode-specific sample parameter files for repeatable testing
     ├── azuredeploy.json               # Pre-compiled ARM JSON template (used by "Deploy to Azure" button)
+    ├── solution/                      # Shared solution core used by both direct-template and managed-app wrappers
     ├── modules/
-    │   ├── network.bicep              # Virtual Network, Subnets, NSG
+  │   ├── network.bicep              # AVM-backed VNet, subnets, NSGs, NAT, plus bespoke hub peering
     │   ├── hostpool.bicep             # Host Pool, Desktop/RemoteApp Groups, published apps, Workspace
     │   ├── sessionhosts.bicep         # VMs, NICs, Entra ID Join, AVD Agent, Role Assignments
     │   ├── fslogix.bicep              # Azure Files storage for user profiles
     │   └── monitoring.bicep           # Log Analytics workspace
+    ├── managedapp/
+    │   ├── mainTemplate.bicep         # Managed-app wrapper over the shared solution core
+    │   ├── deployDefinition.bicep     # Managed application definition
+    │   └── dist/                      # Generated managed-app publishable artifacts
     └── scripts/
-        └── Install-AVDAgent.ps1       # PowerShell script that runs inside each VM via VM RunCommand
+      ├── Build-DeploymentArtifacts.ps1 # Deterministically rebuilds deployable JSON and managed-app package outputs
+      └── Install-AVDAgent.ps1       # PowerShell script that runs inside each VM via VM RunCommand
 ```
 
-### 3.1 `infra/main.bicep` — Main Orchestrator
+### 3.1 `infra/main.bicep` — Direct-Template Wrapper
 
-**Purpose:** The single entry point for the entire deployment. All other modules are invoked from here.
+**Purpose:** The direct-template engineering entry point. It forwards user-facing parameters to the shared solution core that is also used by the managed-app wrapper.
 
 **Responsibilities:**
-- Defines all user-facing parameters (prefix, environment, VM count, size, etc.)
-- Constructs the `namingPrefix` variable: `{deploymentPrefix}-{environment}` (e.g., `myapp-dev`)
-- Applies consistent tags (`Environment`, `Project`, `DeployedBy`) to all resources
-- Invokes the 5 child modules with computed names and passes parameters
-- Conditionally deploys FSLogix and Monitoring based on boolean flags
-- Outputs key resource identifiers (host pool name, VNet ID, VM names, etc.)
+- Exposes the user-facing deployment parameters for the direct-template lane
+- Passes those parameters into `infra/solution/avdDeploymentCore.bicep`
+- Preserves the same output contract used for validation and troubleshooting
+- Keeps direct-template behavior aligned with the managed-app deployment surface
 
 **Naming Convention:** All resources follow this pattern:
 | Resource | Name Format | Example |
@@ -309,19 +317,35 @@ AVD-Landing-Zone/
 
 Each sample still expects you to supply environment-specific secure values such as `adminPassword`, `storageAccountName`, and usually `avdUserObjectIds` at deployment time.
 
-### 3.3 `infra/azuredeploy.json` — Compiled ARM Template
+### 3.3 `infra/azuredeploy.json` — Compiled Direct-Template Artifact
 
-**Purpose:** A pre-compiled JSON version of `main.bicep` + all nested modules. This is the file that the **"Deploy to Azure" button** points to.
+**Purpose:** A pre-compiled JSON version of `main.bicep` + all nested modules. This is the direct-template artifact used only for internal validation and break-glass troubleshooting.
 
 **How it's generated:**
 
 ```bash
-az bicep build --file infra/main.bicep --outfile infra/azuredeploy.json
+pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
 ```
 
-> **Critical:** Whenever you modify any `.bicep` file, you **must** rebuild `azuredeploy.json` and commit it. The portal deployment button always pulls this JSON file from the `master` branch on GitHub. If it's stale, portal deployments will use outdated templates.
+> **Critical:** Whenever you modify any `.bicep` file, rebuild the artifacts with `pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1` and commit the generated outputs that back the validation lane and managed-app package. Do not rely on ad hoc `az bicep build` scratch outputs such as `infra/main.json`.
 
-### 3.4 `infra/modules/network.bicep` — Networking
+### 3.4 `infra/managedapp/dist/*` — Managed-App Publishable Artifacts
+
+**Purpose:** These are the generated outputs used to publish or update the Azure Managed Application package and definition.
+
+**Generated by:**
+
+```bash
+pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
+```
+
+**Key outputs:**
+- `infra/managedapp/dist/mainTemplate.json`
+- `infra/managedapp/dist/deployDefinition.json`
+- `infra/managedapp/dist/package/*`
+- `infra/managedapp/dist/app.zip`
+
+### 3.5 `infra/modules/network.bicep` — Networking
 
 **Purpose:** Creates the isolated network foundation for the AVD environment.
 
@@ -333,15 +357,15 @@ az bicep build --file infra/main.bicep --outfile infra/azuredeploy.json
 | Subnet — Session Hosts | `snet-avd-sessionhosts` | `10.20.1.0/24` — where VMs are deployed |
 | Subnet — Private Endpoints | `snet-avd-privateendpoints` | `10.20.2.0/24` — reserved for PE connectivity |
 | NSG | `nsg-avd-sessionhosts` | Attached to the session hosts subnet |
+| NSG | `nsg-avd-privateendpoints` | Attached to the private endpoints subnet |
 
 **NSG Rules:**
 
 | Rule | Priority | Direction | Action | Protocol | Source | Destination Port |
 |---|---|---|---|---|---|---|
-| AllowRDP | 1000 | Inbound | Allow | TCP | VirtualNetwork | 3389 |
 | DenyAllInbound | 4096 | Inbound | Deny | * | * | * |
 
-> **Security Note:** RDP is only allowed from within the VNet. There is no public IP or inbound internet access to the session hosts. Users connect through the AVD control plane (reverse-connect transport), which requires no inbound ports.
+> **Security Note:** The subnets are inbound-deny by default. There is no public IP or inbound internet access to the session hosts. Users connect through the AVD control plane (reverse-connect transport), which requires no inbound ports.
 
 **Outputs:** `vnetId`, `sessionHostSubnetId`, `privateEndpointSubnetId`
 
@@ -361,7 +385,6 @@ az bicep build --file infra/main.bicep --outfile infra/azuredeploy.json
 
 **Key Configuration Details:**
 
-- **Management Type:** The host pool explicitly sets `managementType: 'Standard'`. With API version `2024-04-08-preview`, pooled host pools otherwise default to `Automated`, which is intended for session host configuration rather than this repo's self-managed VM provisioning flow.
 - **Custom RDP Properties** (baked into the host pool):
   ```
   targetisaadjoined:i:1          → Tells the client this is an Entra ID joined host
@@ -431,6 +454,8 @@ VM Created
 | **File Share** | Name: `fslogix-profiles`. Quota: 100 GiB. Protocol: SMB. |
 
 > **Note:** This module is conditionally deployed (`deployFSLogix` parameter, default `true`). Additional GPO/Intune configuration is needed to point session hosts to this share (not part of the automated deployment).
+
+If `deployFSLogixPrivateEndpoint` is enabled, the deployment also provisions the FSLogix private endpoint and private DNS integration through a separate module.
 
 **Outputs:** `storageAccountId`, `storageAccountName`, `fileShareName`
 
@@ -734,14 +759,32 @@ The session host name includes the deployment seed, so the exact hostname suffix
 When modifying any Bicep file:
 
 1. Edit the `.bicep` file(s)
-2. Rebuild the ARM template:
+2. Rebuild the tracked deployment artifacts:
    ```bash
-   az bicep build --file infra/main.bicep --outfile infra/azuredeploy.json
+  pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
    ```
-3. Commit and push both the `.bicep` and `azuredeploy.json` files
-4. The "Deploy to Azure" button will immediately use the updated template (pulled from GitHub `master` branch)
+3. Commit and push the updated `.bicep` sources plus any regenerated tracked artifacts
+4. The internal validation lane and managed-app publishing path will both reflect the rebuilt outputs
 
-### 5.6 Destroying Resources
+### 5.6 AVM Boundary Snapshot
+
+Completed AVM adoption in this repo:
+
+- Log Analytics workspace
+- FSLogix storage account and file share
+- Session host and private endpoint NSGs
+- Spoke VNet and subnets
+- NAT public IP and NAT gateway
+- FSLogix private endpoint and private DNS zone
+
+Reviewed and intentionally retained:
+
+- Private DNS mode branching in the FSLogix private-endpoint module
+- Monitoring DCR composition
+- Cross-scope hub peering logic
+- AVD control-plane and session-host orchestration logic
+
+### 5.7 Destroying Resources
 
 To completely clean up an AVD deployment:
 

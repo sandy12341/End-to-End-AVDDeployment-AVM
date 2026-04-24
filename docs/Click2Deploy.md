@@ -1,14 +1,16 @@
-# Click2Deploy: End-to-End Flow When a User Clicks "Deploy to Azure"
+# Click2Deploy: Internal Validation Flow for the Direct Template Path
 
-This document explains the current end-to-end deployment flow for this Azure Virtual Desktop landing zone when a user clicks the **Deploy to Azure** button.
+This document explains the internal validation flow for the direct-template deployment path.
 
 It reflects the current compiled ARM template in `infra/azuredeploy.json` and the latest validated deployment behavior.
 
+The supported public customer path is the Azure Managed Application. The raw-template path documented here is retained only for engineering validation, parity testing, and break-glass troubleshooting.
+
 ---
 
-## 1. What the button does
+## 1. What the internal validation button does
 
-The **Deploy to Azure** button opens the Azure portal custom deployment experience by pointing the portal at the compiled ARM template stored in GitHub.
+The internal validation Deploy-to-Azure link opens the Azure portal custom deployment experience by pointing the portal at the compiled ARM template stored in GitHub.
 
 When the user clicks it:
 
@@ -109,6 +111,7 @@ This phase runs only when the user selects `CreateNewVnet`.
 Azure creates:
 
 - Network security group: `nsg-avd-sessionhosts`
+- Network security group: `nsg-avd-privateendpoints`
 - Public IP for NAT gateway: `vnet-avd-<prefix>-<env>-natgw-pip`
 - NAT gateway: `vnet-avd-<prefix>-<env>-natgw`
 - Virtual network: `vnet-avd-<prefix>-<env>`
@@ -127,8 +130,8 @@ Key behaviors:
 
 - Session hosts do not get public IPs
 - Outbound internet is provided through the NAT gateway
-- The session host subnet includes a `Microsoft.Storage` service endpoint
-- The NSG allows RDP only from within the virtual network, then denies all other inbound traffic
+- The session host subnet includes a `Microsoft.Storage` service endpoint only when the deployment is not using the FSLogix private endpoint path
+- Both subnets are inbound-deny by default; AVD connectivity relies on reverse connect rather than inbound RDP
 
 Why this matters:
 
@@ -155,7 +158,6 @@ Azure creates:
 
 Host pool configuration includes:
 
-- `managementType: Standard` so pooled host pools use the classic self-managed session host flow instead of the 2024-04-08-preview API default of `Automated`
 - `Pooled` or `Personal`, derived from `avdMode` when it is provided and otherwise from the legacy `hostPoolType`
 - `BreadthFirst` load balancing by default
 - `startVMOnConnect: true`
@@ -185,7 +187,6 @@ In greenfield mode it starts only after the new network is fully provisioned.
 Azure creates:
 
 - Storage account
-- File service
 - Azure Files share named `fslogix-profiles`
 
 Security and compliance settings applied automatically:
@@ -196,6 +197,8 @@ Security and compliance settings applied automatically:
 - `azureFilesIdentityBasedAuthentication.directoryServiceOptions: AADKERB`
 - network ACL default action `Deny`
 - VNet rule allowing only the session host subnet
+
+If `deployFSLogixPrivateEndpoint` is enabled, the deployment also creates the FSLogix private endpoint and private DNS wiring through a separate module.
 
 Why this matters:
 

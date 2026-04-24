@@ -32,123 +32,125 @@ var hubVnetSegments = split(hubVnetResourceId, '/')
 var hubVnetResourceGroupName = !empty(hubVnetResourceId) ? hubVnetSegments[4] : ''
 var hubVnetName = !empty(hubVnetResourceId) ? hubVnetSegments[8] : ''
 
-resource natGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
-  name: '${vnetName}-natgw-pip'
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
+module natGatewayPublicIp 'br/public:avm/res/network/public-ip-address:0.12.0' = {
+  name: take('avm.res.network.public-ip-address.${vnetName}.natgw', 64)
+  params: {
+    name: '${vnetName}-natgw-pip'
+    location: location
+    tags: tags
+    skuName: 'Standard'
+    publicIPAddressVersion: 'IPv4'
     publicIPAllocationMethod: 'Static'
+    enableTelemetry: false
   }
 }
 
-resource natGateway 'Microsoft.Network/natGateways@2024-01-01' = {
-  name: '${vnetName}-natgw'
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIpAddresses: [
-      { id: natGatewayPublicIp.id }
+module natGateway 'br/public:avm/res/network/nat-gateway:1.4.0' = {
+  name: take('avm.res.network.nat-gateway.${vnetName}', 64)
+  params: {
+    name: '${vnetName}-natgw'
+    location: location
+    availabilityZone: -1
+    publicIpResourceIds: [
+      natGatewayPublicIp.outputs.resourceId
     ]
     idleTimeoutInMinutes: 4
+    tags: tags
+    enableTelemetry: false
   }
 }
 
-resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
+var subnets = [
+  {
+    name: sessionHostSubnetName
+    addressPrefixes: [
+      sessionHostSubnetPrefix
+    ]
+    networkSecurityGroupResourceId: nsgSessionHosts.outputs.resourceId
+    natGatewayResourceId: natGateway.outputs.resourceId
+    serviceEndpoints: removeStorageServiceEndpoint ? [] : [
+      'Microsoft.Storage'
+    ]
+  }
+  {
+    name: privateEndpointSubnetName
+    addressPrefixes: [
+      privateEndpointSubnetPrefix
+    ]
+    networkSecurityGroupResourceId: nsgPrivateEndpoints.outputs.resourceId
+  }
+]
+
+module nsgPrivateEndpoints 'br/public:avm/res/network/network-security-group:0.5.3' = {
+  name: take('avm.res.network.network-security-group.nsg-avd-privateendpoints.${vnetName}', 64)
+  params: {
+    name: 'nsg-avd-privateendpoints'
+    location: location
+    tags: tags
+    securityRules: [
+      {
+        name: 'DenyAllInbound'
+        properties: {
+          priority: 4096
+          direction: 'Inbound'
+          access: 'Deny'
+          protocol: '*'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '*'
+        }
+      }
+    ]
+    enableTelemetry: false
+  }
+}
+
+module nsgSessionHosts 'br/public:avm/res/network/network-security-group:0.5.3' = {
+  name: take('avm.res.network.network-security-group.nsg-avd-sessionhosts.${vnetName}', 64)
+  params: {
+    name: 'nsg-avd-sessionhosts'
+    location: location
+    tags: tags
+    securityRules: [
+      {
+        name: 'DenyAllInbound'
+        properties: {
+          priority: 4096
+          direction: 'Inbound'
+          access: 'Deny'
+          protocol: '*'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '*'
+        }
+      }
+    ]
+    enableTelemetry: false
+  }
+}
+
+module vnet 'br/public:avm/res/network/virtual-network:0.7.2' = {
+  name: take('avm.res.network.virtual-network.${vnetName}', 64)
+  params: {
+    name: vnetName
+    location: location
+    addressPrefixes: [
+      vnetAddressPrefix
+    ]
+    subnets: subnets
+    tags: tags
+    enableTelemetry: false
+  }
+}
+
+resource vnetResource 'Microsoft.Network/virtualNetworks@2024-05-01' existing = {
   name: vnetName
-  location: location
-  tags: tags
-  properties: {
-    addressSpace: {
-      addressPrefixes: [vnetAddressPrefix]
-    }
-    subnets: [
-      {
-        name: sessionHostSubnetName
-        properties: {
-          addressPrefix: sessionHostSubnetPrefix
-          networkSecurityGroup: {
-            id: nsgSessionHosts.id
-          }
-          natGateway: {
-            id: natGateway.id
-          }
-          serviceEndpoints: removeStorageServiceEndpoint ? [] : [
-            {
-              service: 'Microsoft.Storage'
-            }
-          ]
-        }
-      }
-      {
-        name: privateEndpointSubnetName
-        properties: {
-          addressPrefix: privateEndpointSubnetPrefix
-          networkSecurityGroup: {
-            id: nsgPrivateEndpoints.id
-          }
-        }
-      }
-    ]
-  }
 }
 
-// 3A: NSG for private endpoint subnet — deny all inbound, allow all outbound
-resource nsgPrivateEndpoints 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
-  name: 'nsg-avd-privateendpoints'
-  location: location
-  tags: tags
-  properties: {
-    securityRules: [
-      {
-        name: 'DenyAllInbound'
-        properties: {
-          priority: 4096
-          direction: 'Inbound'
-          access: 'Deny'
-          protocol: '*'
-          sourceAddressPrefix: '*'
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '*'
-        }
-      }
-    ]
-  }
-}
-
-// 3B: Session host NSG — AllowRDP removed (AVD uses reverse-connect; no inbound RDP required)
-// Break-glass access via Azure Serial Console or Run Command.
-resource nsgSessionHosts 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
-  name: 'nsg-avd-sessionhosts'
-  location: location
-  tags: tags
-  properties: {
-    securityRules: [
-      {
-        name: 'DenyAllInbound'
-        properties: {
-          priority: 4096
-          direction: 'Inbound'
-          access: 'Deny'
-          protocol: '*'
-          sourceAddressPrefix: '*'
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '*'
-        }
-      }
-    ]
-  }
-}
-
-resource spokeToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-01-01' = if (!empty(hubVnetResourceId)) {
-  parent: vnet
+resource spokeToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-05-01' = if (!empty(hubVnetResourceId)) {
+  parent: vnetResource
   name: '${vnet.name}-to-${hubVnetName}'
   properties: {
     allowVirtualNetworkAccess: true
@@ -166,11 +168,11 @@ module hubPeering './hubPeering.bicep' = if (!empty(hubVnetResourceId)) {
   scope: resourceGroup(hubVnetResourceGroupName)
   params: {
     hubVnetName: hubVnetName
-    spokeVnetName: vnet.name
-    spokeVnetResourceId: vnet.id
+    spokeVnetName: vnet.outputs.name
+    spokeVnetResourceId: vnet.outputs.resourceId
   }
 }
 
-output vnetId string = vnet.id
-output sessionHostSubnetId string = vnet.properties.subnets[0].id
-output privateEndpointSubnetId string = vnet.properties.subnets[1].id
+output vnetId string = vnet.outputs.resourceId
+output sessionHostSubnetId string = vnet.outputs.subnetResourceIds[0]
+output privateEndpointSubnetId string = vnet.outputs.subnetResourceIds[1]

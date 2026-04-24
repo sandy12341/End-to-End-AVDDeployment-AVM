@@ -78,7 +78,7 @@ var installScriptContent = loadTextContent('../scripts/Install-AVDAgent.ps1')
 var entraJoinNetworkPrepScriptContent = loadTextContent('../scripts/Prepare-EntraJoinNetworking.ps1')
 
 // Reference existing host pool for role assignment and token retrieval
-resource existingHostPool 'Microsoft.DesktopVirtualization/hostPools@2024-04-08-preview' existing = {
+resource existingHostPool 'Microsoft.DesktopVirtualization/hostPools@2025-10-10' existing = {
   name: hostPoolName
 }
 
@@ -140,7 +140,7 @@ resource sessionHosts 'Microsoft.Compute/virtualMachines@2024-07-01' = [
   }
 ]
 
-resource nics 'Microsoft.Network/networkInterfaces@2024-01-01' = [
+resource nics 'Microsoft.Network/networkInterfaces@2024-05-01' = [
   for i in range(0, sessionHostCount): {
     name: 'nic-${vmNamePrefix}-${i}'
     location: location
@@ -176,7 +176,7 @@ resource vmRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
 
 // Ensure the guest can still resolve public Entra endpoints when the VNet uses
 // custom DNS servers that do not recurse externally.
-resource prepareEntraJoinNetworking 'Microsoft.Compute/virtualMachines/runCommands@2023-09-01' = [
+resource prepareEntraJoinNetworking 'Microsoft.Compute/virtualMachines/runCommands@2024-07-01' = [
   for i in range(0, sessionHostCount): if (authenticationType == 'EntraID') {
     parent: sessionHosts[i]
     name: 'PrepareEntraJoinNetworking'
@@ -236,7 +236,7 @@ resource hybridDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2024-07-
 
 // AVD Agent — install via VM RunCommand with inline script content.
 // This avoids commandToExecute length limits in CustomScriptExtension.
-resource avdAgentEntra 'Microsoft.Compute/virtualMachines/runCommands@2023-09-01' = [
+resource avdAgentEntra 'Microsoft.Compute/virtualMachines/runCommands@2024-07-01' = [
   for i in range(0, sessionHostCount): if (authenticationType == 'EntraID') {
     parent: sessionHosts[i]
     name: 'InstallAVDAgentEntra'
@@ -258,7 +258,7 @@ resource avdAgentEntra 'Microsoft.Compute/virtualMachines/runCommands@2023-09-01
   }
 ]
 
-resource avdAgentHybrid 'Microsoft.Compute/virtualMachines/runCommands@2023-09-01' = [
+resource avdAgentHybrid 'Microsoft.Compute/virtualMachines/runCommands@2024-07-01' = [
   for i in range(0, sessionHostCount): if (authenticationType == 'HybridJoin') {
     parent: sessionHosts[i]
     name: 'InstallAVDAgentHybrid'
@@ -296,7 +296,7 @@ resource azureMonitorAgent 'Microsoft.Compute/virtualMachines/extensions@2024-07
   }
 ]
 
-resource monitoringRuleAssociation 'Microsoft.Insights/dataCollectionRuleAssociations@2022-06-01' = [
+resource monitoringRuleAssociation 'Microsoft.Insights/dataCollectionRuleAssociations@2024-03-11' = [
   for i in range(0, sessionHostCount): if (enableMonitoring) {
     scope: sessionHosts[i]
     name: 'vm-monitoring-association'

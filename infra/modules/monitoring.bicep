@@ -13,19 +13,19 @@ param dataCollectionRuleName string = 'dcr-avd-monitoring'
 @description('Tags for all resources')
 param tags object = {}
 
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: workspaceName
-  location: location
-  tags: tags
-  properties: {
-    sku: {
-      name: 'PerGB2018'
-    }
-    retentionInDays: retentionDays
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = {
+  name: take('avm.res.operational-insights.workspace.${workspaceName}', 64)
+  params: {
+    name: workspaceName
+    location: location
+    tags: tags
+    skuName: 'PerGB2018'
+    dataRetention: retentionDays
+    enableTelemetry: false
   }
 }
 
-resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
+resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' = {
   name: dataCollectionRuleName
   location: location
   tags: tags
@@ -67,7 +67,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
       logAnalytics: [
         {
           name: 'logAnalyticsDestination'
-          workspaceResourceId: logAnalytics.id
+          workspaceResourceId: logAnalytics.outputs.resourceId
         }
       ]
     }
@@ -100,7 +100,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
   }
 }
 
-output workspaceId string = logAnalytics.id
-output workspaceName string = logAnalytics.name
+output workspaceId string = logAnalytics.outputs.resourceId
+output workspaceName string = logAnalytics.outputs.name
 output dataCollectionRuleId string = dataCollectionRule.id
 output dataCollectionRuleName string = dataCollectionRule.name

@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.30.3.12046",
-      "templateHash": "6782119141656355331"
+      "version": "0.42.1.51946",
+      "templateHash": "37869654108048480"
     }
   },
   "parameters": {
@@ -18,21 +18,21 @@
     },
     "managedApplicationDefinitionName": {
       "type": "string",
-      "defaultValue": "avd-existing-network",
+      "defaultValue": "avd-existing-network-avm",
       "metadata": {
         "description": "Name of the managed application definition"
       }
     },
     "definitionDisplayName": {
       "type": "string",
-      "defaultValue": "Azure Virtual Desktop + ALZ",
+      "defaultValue": "Azure Virtual Desktop + ALZ (AVM)",
       "metadata": {
         "description": "Display name shown in the Azure service catalog"
       }
     },
     "definitionDescription": {
       "type": "string",
-      "defaultValue": "Azure Virtual Desktop deployment that uses an existing VNet and existing subnets selected through a managed application portal wizard.",
+      "defaultValue": "Azure Virtual Desktop AVM modernization deployment that uses an existing VNet and existing subnets selected through a managed application portal wizard.",
       "metadata": {
         "description": "Description shown in the Azure service catalog"
       }

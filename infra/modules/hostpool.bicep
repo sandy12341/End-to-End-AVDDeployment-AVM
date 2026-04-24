@@ -54,12 +54,11 @@ var publishedAppGroupIds = concat(
   publishRemoteApps ? [remoteAppGroup.id] : []
 )
 
-resource hostPool 'Microsoft.DesktopVirtualization/hostPools@2024-04-08-preview' = {
+resource hostPool 'Microsoft.DesktopVirtualization/hostPools@2025-10-10' = {
   name: hostPoolName
   location: location
   tags: tags
   properties: {
-    managementType: 'Standard'
     hostPoolType: hostPoolType
     loadBalancerType: loadBalancerType
     maxSessionLimit: maxSessionLimit
@@ -75,7 +74,7 @@ resource hostPool 'Microsoft.DesktopVirtualization/hostPools@2024-04-08-preview'
   }
 }
 
-resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2024-04-08-preview' = if (publishDesktop) {
+resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' = if (publishDesktop) {
   name: desktopAppGroupName
   location: location
   tags: tags
@@ -86,7 +85,7 @@ resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2024
   }
 }
 
-resource remoteAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2024-04-08-preview' = if (publishRemoteApps) {
+resource remoteAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' = if (publishRemoteApps) {
   name: remoteAppGroupName
   location: location
   tags: tags
@@ -97,7 +96,7 @@ resource remoteAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2024-
   }
 }
 
-resource remoteApplications 'Microsoft.DesktopVirtualization/applicationGroups/applications@2024-04-08-preview' = [for remoteApp in (publishRemoteApps ? remoteApps : []): {
+resource remoteApplications 'Microsoft.DesktopVirtualization/applicationGroups/applications@2025-10-10' = [for remoteApp in (publishRemoteApps ? remoteApps : []): {
   name: remoteApp.name
   parent: remoteAppGroup
   properties: {
@@ -111,7 +110,7 @@ resource remoteApplications 'Microsoft.DesktopVirtualization/applicationGroups/a
   }
 }]
 
-resource workspace 'Microsoft.DesktopVirtualization/workspaces@2024-04-08-preview' = {
+resource workspace 'Microsoft.DesktopVirtualization/workspaces@2025-10-10' = {
   name: workspaceName
   location: location
   tags: tags

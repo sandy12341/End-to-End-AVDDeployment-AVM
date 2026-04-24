@@ -1,3 +1,5 @@
+// Thin managed-app wrapper over the shared solution core.
+
 targetScope = 'resourceGroup'
 
 @description('Azure region for all resources')
@@ -155,318 +157,71 @@ param remoteApps array = []
 @description('Per-deployment seed used to keep session host computer names unique across redeployments in the same resource group.')
 param deploymentInstanceSeed string = utcNow('u')
 
-var namingPrefix = '${deploymentPrefix}-${environment}'
-var effectiveAvdMode = empty(avdMode) ? (hostPoolType == 'Personal' ? 'PersonalDesktop' : 'PooledDesktop') : avdMode
-var effectiveHostPoolType = effectiveAvdMode == 'PersonalDesktop' ? 'Personal' : 'Pooled'
-var publishDesktop = effectiveAvdMode == 'PersonalDesktop' || effectiveAvdMode == 'PooledDesktop' || effectiveAvdMode == 'PooledDesktopAndRemoteApp'
-var publishRemoteApps = effectiveAvdMode == 'PooledRemoteApp' || effectiveAvdMode == 'PooledDesktopAndRemoteApp'
-var effectiveExistingVnetResourceGroupName = empty(existingVnetResourceGroupName) ? resourceGroup().name : existingVnetResourceGroupName
-var desktopAppGroupName = 'dag-avd-${namingPrefix}'
-var remoteAppGroupName = 'rag-avd-${namingPrefix}'
-var existingVnetId = resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks', existingVnetName)
-var normalizedAvdUserObjectIds = [for oid in split(replace(replace(avdUserObjectIds, '\r\n', ','), '\n', ','), ','): trim(oid)]
-var legacyAccessAssignments = [for oid in normalizedAvdUserObjectIds: {
-  principalId: oid
-  principalType: 'User'
-}]
-var desktopEffectiveAssignments = union(desktopAccessAssignments, publishDesktop ? legacyAccessAssignments : [])
-var remoteAppEffectiveAssignments = union(remoteAppAccessAssignments, publishRemoteApps ? legacyAccessAssignments : [])
-var vmLoginEffectiveAssignments = union(desktopEffectiveAssignments, remoteAppEffectiveAssignments)
-var effectiveSessionHostSecurityType = sessionHostSecurityType == 'TrustedLaunch' || (sessionHostSecurityType == 'Auto' && imageSource == 'AzureComputeGallery')
-  ? 'TrustedLaunch'
-  : 'Standard'
-var sessionHostImageReference = imageSource == 'AzureComputeGallery'
-  ? {
-      id: resourceId(galleryImageSubscriptionId, galleryImageResourceGroupName, 'Microsoft.Compute/galleries/images/versions', galleryName, galleryImageDefinitionName, galleryImageVersion)
-    }
-  : {
-      publisher: marketplaceImagePublisher
-      offer: marketplaceImageOffer
-      sku: marketplaceImageSku
-      version: marketplaceImageVersion
-    }
-var tags = {
-  Environment: environment
-  Project: 'AVD-Landing-Zone'
-  DeployedBy: 'Bicep'
-}
-
-module network '../modules/network.bicep' = if (networkMode == 'CreateNewVnet') {
-  name: 'deploy-network'
+module sharedSolution '../solution/avdDeploymentCore.bicep' = {
+  name: 'avd-solution'
   params: {
     location: location
-    vnetName: newVnetName
-    vnetAddressPrefix: newVnetAddressPrefix
-    sessionHostSubnetName: newSessionHostSubnetName
-    sessionHostSubnetPrefix: newSessionHostSubnetPrefix
-    privateEndpointSubnetName: newPrivateEndpointSubnetName
-    privateEndpointSubnetPrefix: newPrivateEndpointSubnetPrefix
-    hubVnetResourceId: hubVnetResourceId
-    removeStorageServiceEndpoint: deployFSLogixPrivateEndpoint
-    tags: tags
-  }
-}
-
-var vnetId = networkMode == 'CreateNewVnet' ? network!.outputs.vnetId : existingVnetId
-var sessionHostSubnetId = networkMode == 'CreateNewVnet'
-  ? network!.outputs.sessionHostSubnetId
-  : resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', existingVnetName, sessionHostSubnetName)
-var privateEndpointSubnetId = networkMode == 'CreateNewVnet'
-  ? network!.outputs.privateEndpointSubnetId
-  : resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', existingVnetName, privateEndpointSubnetName)
-
-module hostPool '../modules/hostpool.bicep' = {
-  name: 'deploy-hostpool'
-  dependsOn: [
-    network
-  ]
-  params: {
-    location: location
-    hostPoolName: hostPoolName
-    hostPoolType: effectiveHostPoolType
-    workspaceName: 'ws-avd-${namingPrefix}'
-    desktopAppGroupName: desktopAppGroupName
-    remoteAppGroupName: remoteAppGroupName
-    publishDesktop: publishDesktop
-    publishRemoteApps: publishRemoteApps
-    authenticationType: authenticationType
-    remoteApps: remoteApps
-    tags: tags
-  }
-}
-
-module sessionHosts '../modules/sessionhosts.bicep' = {
-  name: 'deploy-sessionhosts'
-  params: {
-    location: location
+    deploymentPrefix: deploymentPrefix
+    environment: environment
     sessionHostCount: sessionHostCount
     vmSize: vmSize
-    sessionHostSecurityType: effectiveSessionHostSecurityType
-    imageReference: sessionHostImageReference
-    subnetId: sessionHostSubnetId
-    hostPoolName: hostPool.outputs.hostPoolName
-    adminUsername: adminUsername
-    adminPassword: adminPassword
+    imageSource: imageSource
+    marketplaceImagePublisher: marketplaceImagePublisher
+    marketplaceImageOffer: marketplaceImageOffer
+    marketplaceImageSku: marketplaceImageSku
+    marketplaceImageVersion: marketplaceImageVersion
+    galleryImageSubscriptionId: galleryImageSubscriptionId
+    galleryImageResourceGroupName: galleryImageResourceGroupName
+    galleryName: galleryName
+    galleryImageDefinitionName: galleryImageDefinitionName
+    galleryImageVersion: galleryImageVersion
+    sessionHostSecurityType: sessionHostSecurityType
+    avdMode: avdMode
+    hostPoolType: hostPoolType
     authenticationType: authenticationType
     domainFqdn: domainFqdn
     domainJoinUsername: domainJoinUsername
     domainJoinPassword: domainJoinPassword
     domainJoinOuPath: domainJoinOuPath
-    enableMonitoring: deployMonitoring
-    dataCollectionRuleId: deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : ''
-    deploymentInstanceSeed: deploymentInstanceSeed
-    vmNamePrefix: 'vm-avd-${namingPrefix}'
-    tags: tags
-  }
-}
-
-module fslogix '../modules/fslogix.bicep' = if (deployFSLogix) {
-  name: 'deploy-fslogix'
-  params: {
-    location: location
+    adminUsername: adminUsername
+    adminPassword: adminPassword
+    deployFSLogix: deployFSLogix
     storageAccountName: storageAccountName
-    sessionHostSubnetId: sessionHostSubnetId
-    deployPrivateEndpoint: deployFSLogixPrivateEndpoint
-    tags: tags
+    deployMonitoring: deployMonitoring
+    deployFSLogixPrivateEndpoint: deployFSLogixPrivateEndpoint
+    networkMode: networkMode
+    existingVnetName: existingVnetName
+    existingVnetResourceGroupName: existingVnetResourceGroupName
+    sessionHostSubnetName: sessionHostSubnetName
+    privateEndpointSubnetName: privateEndpointSubnetName
+    newVnetName: newVnetName
+    newVnetAddressPrefix: newVnetAddressPrefix
+    newSessionHostSubnetName: newSessionHostSubnetName
+    newSessionHostSubnetPrefix: newSessionHostSubnetPrefix
+    newPrivateEndpointSubnetName: newPrivateEndpointSubnetName
+    newPrivateEndpointSubnetPrefix: newPrivateEndpointSubnetPrefix
+    hubVnetResourceId: hubVnetResourceId
+    hostPoolName: hostPoolName
+    avdUserObjectIds: avdUserObjectIds
+    desktopAccessAssignments: desktopAccessAssignments
+    remoteAppAccessAssignments: remoteAppAccessAssignments
+    remoteApps: remoteApps
+    deploymentInstanceSeed: deploymentInstanceSeed
   }
 }
 
-module fslogixDns '../modules/fslogixPrivateDns.bicep' = if (deployFSLogix && deployFSLogixPrivateEndpoint) {
-  name: 'deploy-fslogix-pe'
-  params: {
-    location: location
-    storageAccountId: deployFSLogix ? fslogix!.outputs.storageAccountId : ''
-    privateEndpointSubnetId: privateEndpointSubnetId
-    vnetId: vnetId
-    tags: tags
-  }
-}
-
-module monitoring '../modules/monitoring.bicep' = if (deployMonitoring) {
-  name: 'deploy-monitoring'
-  dependsOn: [
-    network
-  ]
-  params: {
-    location: location
-    workspaceName: 'log-avd-${namingPrefix}'
-    dataCollectionRuleName: 'dcr-avd-${namingPrefix}'
-    tags: tags
-  }
-}
-
-resource monitoredHostPool 'Microsoft.DesktopVirtualization/hostPools@2024-04-08-preview' existing = if (deployMonitoring) {
-  name: hostPoolName
-}
-
-resource monitoredWorkspace 'Microsoft.DesktopVirtualization/workspaces@2024-04-08-preview' existing = if (deployMonitoring) {
-  name: 'ws-avd-${namingPrefix}'
-}
-
-resource monitoredFslogixStorage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = if (deployFSLogix && deployMonitoring) {
-  name: storageAccountName
-}
-
-resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2024-04-08-preview' existing = if (publishDesktop) {
-  name: desktopAppGroupName
-}
-
-resource remoteAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2024-04-08-preview' existing = if (publishRemoteApps) {
-  name: remoteAppGroupName
-}
-
-resource hostPoolDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring) {
-  name: 'diag-hostpool-to-law'
-  scope: monitoredHostPool
-  properties: {
-    workspaceId: monitoring!.outputs.workspaceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource avdWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring) {
-  name: 'diag-workspace-to-law'
-  scope: monitoredWorkspace
-  properties: {
-    workspaceId: monitoring!.outputs.workspaceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource desktopAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring && publishDesktop) {
-  name: 'diag-desktop-appgroup-to-law'
-  scope: desktopAppGroup
-  properties: {
-    workspaceId: monitoring!.outputs.workspaceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource remoteAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring && publishRemoteApps) {
-  name: 'diag-remoteapp-appgroup-to-law'
-  scope: remoteAppGroup
-  properties: {
-    workspaceId: monitoring!.outputs.workspaceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource fslogixStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployFSLogix && deployMonitoring) {
-  name: 'diag-fslogix-storage-to-law'
-  scope: monitoredFslogixStorage
-  properties: {
-    workspaceId: monitoring!.outputs.workspaceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource desktopAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in desktopEffectiveAssignments: if (publishDesktop && !empty(string(assignment.principalId))) {
-  name: guid(resourceGroup().id, desktopAppGroupName, string(assignment.principalType), string(assignment.principalId), '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63')
-  scope: desktopAppGroup
-  dependsOn: [
-    hostPool
-  ]
-  properties: {
-    principalId: string(assignment.principalId)
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63')
-    principalType: string(assignment.principalType)
-  }
-}]
-
-resource remoteAppAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in remoteAppEffectiveAssignments: if (publishRemoteApps && !empty(string(assignment.principalId))) {
-  name: guid(resourceGroup().id, remoteAppGroupName, string(assignment.principalType), string(assignment.principalId), '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63')
-  scope: remoteAppGroup
-  dependsOn: [
-    hostPool
-  ]
-  properties: {
-    principalId: string(assignment.principalId)
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63')
-    principalType: string(assignment.principalType)
-  }
-}]
-
-resource vmLoginRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in vmLoginEffectiveAssignments: if (authenticationType == 'EntraID' && !empty(string(assignment.principalId)) && string(assignment.principalType) != 'ServicePrincipal') {
-  name: guid(resourceGroup().id, string(assignment.principalType), string(assignment.principalId), 'fb879df8-f326-4884-b1cf-06f3ad86be52')
-  properties: {
-    principalId: string(assignment.principalId)
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'fb879df8-f326-4884-b1cf-06f3ad86be52')
-    principalType: string(assignment.principalType)
-  }
-}]
-
-output hostPoolName string = hostPool.outputs.hostPoolName
-output workspaceId string = hostPool.outputs.workspaceId
-output desktopAppGroupId string = hostPool.outputs.desktopAppGroupId
-output remoteAppGroupId string = hostPool.outputs.remoteAppGroupId
-output publishedAppGroupIds array = hostPool.outputs.publishedAppGroupIds
-output vnetId string = vnetId
-output privateEndpointSubnetId string = privateEndpointSubnetId
-output sessionHostVmNames array = sessionHosts.outputs.vmNames
-output fslogixStorageAccount string = deployFSLogix ? fslogix!.outputs.storageAccountName : 'N/A'
-output fslogixPrivateEndpointId string = (deployFSLogix && deployFSLogixPrivateEndpoint) ? fslogixDns!.outputs.privateEndpointId : 'N/A'
-output logAnalyticsWorkspace string = deployMonitoring ? monitoring!.outputs.workspaceName : 'N/A'
-output logAnalyticsWorkspaceId string = deployMonitoring ? monitoring!.outputs.workspaceId : 'N/A'
-output monitoringDataCollectionRuleId string = deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : 'N/A'
-output effectiveAvdMode string = effectiveAvdMode
-output avdRolesAssigned bool = length(desktopEffectiveAssignments) > 0 || length(remoteAppEffectiveAssignments) > 0
+output hostPoolName string = sharedSolution.outputs.hostPoolName
+output workspaceId string = sharedSolution.outputs.workspaceId
+output desktopAppGroupId string = sharedSolution.outputs.desktopAppGroupId
+output remoteAppGroupId string = sharedSolution.outputs.remoteAppGroupId
+output publishedAppGroupIds array = sharedSolution.outputs.publishedAppGroupIds
+output vnetId string = sharedSolution.outputs.vnetId
+output privateEndpointSubnetId string = sharedSolution.outputs.privateEndpointSubnetId
+output sessionHostVmNames array = sharedSolution.outputs.sessionHostVmNames
+output fslogixStorageAccount string = sharedSolution.outputs.fslogixStorageAccount
+output fslogixPrivateEndpointId string = sharedSolution.outputs.fslogixPrivateEndpointId
+output logAnalyticsWorkspace string = sharedSolution.outputs.logAnalyticsWorkspace
+output logAnalyticsWorkspaceId string = sharedSolution.outputs.logAnalyticsWorkspaceId
+output monitoringDataCollectionRuleId string = sharedSolution.outputs.monitoringDataCollectionRuleId
+output effectiveAvdMode string = sharedSolution.outputs.effectiveAvdMode
+output avdRolesAssigned bool = sharedSolution.outputs.avdRolesAssigned

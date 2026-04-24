@@ -40,50 +40,37 @@ var storageNetworkAcls = deployPrivateEndpoint
         : []
     }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName
-  location: location
-  tags: tags
-  kind: 'StorageV2'
-  sku: {
-    name: 'Standard_LRS'
-  }
-  properties: {
+module storageAccount 'br/public:avm/res/storage/storage-account:0.29.0' = {
+  name: take('avm.res.storage.storage-account.${storageAccountName}', 64)
+  params: {
+    name: storageAccountName
+    location: location
+    tags: tags
+    kind: 'StorageV2'
+    skuName: 'Standard_LRS'
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
     allowBlobPublicAccess: false
     allowSharedKeyAccess: false
     publicNetworkAccess: deployPrivateEndpoint ? 'Disabled' : 'Enabled'
+    azureFilesIdentityBasedAuthentication: {
+      directoryServiceOptions: 'AADKERB'
+    }
     networkAcls: storageNetworkAcls
+    blobServices: {}
+    fileServices: {
+      shares: [
+        {
+          name: fileShareName
+          enabledProtocols: 'SMB'
+          shareQuota: fileShareQuotaGiB
+        }
+      ]
+    }
+    enableTelemetry: false
   }
 }
 
-module storageAccountAuth './fslogixAuth.bicep' = {
-  name: 'configure-fslogix-auth'
-  params: {
-    storageAccountName: storageAccountName
-    location: location
-    tags: tags
-    sessionHostSubnetId: sessionHostSubnetId
-    deployPrivateEndpoint: deployPrivateEndpoint
-  }
-  dependsOn: [fileShare]
-}
-
-resource fileServices 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
-  parent: storageAccount
-  name: 'default'
-}
-
-resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
-  parent: fileServices
-  name: fileShareName
-  properties: {
-    shareQuota: fileShareQuotaGiB
-    enabledProtocols: 'SMB'
-  }
-}
-
-output storageAccountId string = storageAccount.id
-output storageAccountName string = storageAccount.name
-output fileShareName string = fileShare.name
+output storageAccountId string = storageAccount.outputs.resourceId
+output storageAccountName string = storageAccount.outputs.name
+output fileShareName string = fileShareName

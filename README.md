@@ -6,7 +6,9 @@ Parallel modernization lane for the Azure Virtual Desktop deployment. This repo 
 
 ### One-Click Deployment with Brownfield/Greenfield Networking ⭐
 
-This repo should use its own branch-specific or repo-specific Deploy-to-Azure link after the AVM lane is published. Do not reuse the stable repo's production portal link here.
+This repo now treats Azure Managed Application as the supported public deployment path. Direct raw-template deployment remains available only as an internal validation lane.
+
+This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or package URI here.
 **What You Get:**
 - Multi-step portal wizard (5 steps)
 - **Network mode selector** — use an existing VNet or create a new spoke VNet
@@ -32,47 +34,46 @@ This repo should use its own branch-specific or repo-specific Deploy-to-Azure li
 - Use a separate package URI from the stable lane.
 - Recommended definition name: `avd-existing-network-avm`
 - Recommended validation resource group: `rg-avd-managedapp-def-avm`
+- Public customer entrypoint: managed application portal experience
+- Internal engineering entrypoint: direct template validation only
+
+## AVM Status
+
+### Completed AVM Adoption
+
+- Log Analytics workspace
+- FSLogix storage account and file share
+- Session host and private endpoint NSGs
+- Spoke VNet and subnets
+- NAT gateway public IP and NAT gateway
+- FSLogix private endpoint and private DNS zone
+
+### Reviewed And Intentionally Retained
+
+- Private DNS mode branching remains local to the FSLogix private-endpoint module because the current `CreateNew` versus `Skip` split is already the clean ownership boundary.
+- The monitoring Data Collection Rule remains bespoke because the current implementation preserves the exact Windows perf counter, event log, stream, and destination behavior with less indirection.
+- Hub peering remains bespoke because the current cross-scope spoke-to-hub and reverse-peering flow is easier to reason about than pushing that behavior behind AVM abstraction.
+- AVD control-plane and session-host orchestration remain bespoke because this repo depends on explicit control over delivery-mode branching, registration lifecycle, join flow, agent install, and monitoring association.
 
 ---
 
 ## Alternative Deployment Methods
 
-### CLI Deployment with VNet/Subnet Dropdowns
+### Managed App Publishing and Operations
 
-You can also deploy using Azure CLI with the same VNet/subnet dropdown experience once this AVM lane has its own published managed application definition:
+Use CLI or PowerShell to publish and update the managed application definition for this repo. Customer deployments should use the managed application portal experience after the definition is published.
+
+The application definition resource ID is useful for inventory, promotion, and support workflows:
 ```bash
-# Define parameters
 DEFINITION_ID="/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
-SUBSCRIPTION_ID="your-subscription-id"
-RESOURCE_GROUP="your-resource-group"
-
-# Create resource group
-az group create -n $RESOURCE_GROUP -l westus3
-
-# Deploy the managed application
-az deployment group create \
-  -g $RESOURCE_GROUP \
-  --subscription $SUBSCRIPTION_ID \
-  -n "avd-app-deploy" \
-  --template-spec "$DEFINITION_ID" \
-  --parameters \
-    hostPoolName="avd-hostpool" \
-    instanceCount=2 \
-    vmSize="Standard_D2s_v3" \
-    deliveryMode="PooledDesktopAndRemoteApp" \
-    existingVnetName="your-vnet" \
-    existingVnetResourceGroupName="your-vnet-rg"
 ```
 
-Or deploy via PowerShell:
+You can query or verify the definition with:
+
 ```powershell
 $definitionId = "/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
 
-az deployment group create `
-  -g "your-resource-group" `
-  --subscription "your-subscription-id" `
-  -n "avd-app-deploy" `
-  --template-spec "$definitionId"
+az resource show --ids "$definitionId"
 ```
 
 **Benefits:**
@@ -82,11 +83,11 @@ az deployment group create `
 - Managed identity with automatic RBAC for resource access
 - Shared definition = no duplication across organizations
 
-### Option 2: ARM Template Deployment
+### Internal Validation Path
 
-Deploy directly from this repo's own branch-specific or repo-specific ARM template and UI definition after publishing them from the AVM lane.
+Direct deployment from this repo's compiled ARM template and validation UI definition is retained only for engineering validation, parity testing, and break-glass troubleshooting.
 
-**Note:** Do not point this repo at the stable repo's raw GitHub template URLs. Use AVM-lane-specific URLs only.
+**Note:** Do not advertise the raw-template path as the public customer entrypoint. Keep it scoped to validation workflows.
 
 ---
 
@@ -124,21 +125,11 @@ To republish to a different Azure AD tenant or subscription:
 
 ```bash
 # 1. Update Bicep templates as needed
-# 2. Recompile to JSON
-az bicep build --file infra/managedapp/mainTemplate.bicep --outfile infra/managedapp/dist/mainTemplate.json
-az bicep build --file infra/managedapp/deployDefinition.bicep --outfile infra/managedapp/dist/deployDefinition.json
+# 2. Build the direct-template and managed-app artifacts deterministically
+pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
 
-# 3. Refresh the package staging folder
-cp infra/managedapp/dist/mainTemplate.json infra/managedapp/dist/package/mainTemplate.json
-cp infra/managedapp/createUiDefinition.json infra/managedapp/dist/package/createUiDefinition.json
-
-# 4. Create new app.zip package from the staged payload
-cd infra/managedapp/dist/package
-zip -r ../app.zip mainTemplate.json createUiDefinition.json
-cd ../../../..
-
-# 5. Upload app.zip to your blob storage or GitHub release
-# 6. Deploy managedApplicationDefinition to shared subscription
+# 3. Upload infra/managedapp/dist/app.zip to your blob storage or GitHub release
+# 4. Deploy managedApplicationDefinition to shared subscription
 PACKAGE_URI="https://your-storage-account.blob.core.windows.net/container/app.zip"
 PRINCIPAL_ID="$(az ad signed-in-user show --query id -o tsv)"
 
@@ -148,62 +139,31 @@ az deployment group create \
   -g rg-avd-managedapp-def \
   --template-file infra/managedapp/deployDefinition.bicep \
   --parameters \
-    managedApplicationDefinitionName='avd-existing-network' \
-    definitionDisplayName='Azure Virtual Desktop + ALZ' \
+    managedApplicationDefinitionName='avd-existing-network-avm' \
+    definitionDisplayName='Azure Virtual Desktop + ALZ (AVM)' \
     packageFileUri="$PACKAGE_URI" \
     principalId="$PRINCIPAL_ID"
 ```
 
 ### Deploying a Managed Application Instance
 
-Once the managed application definition is published, users can deploy instances:
+Once the managed application definition is published, users should deploy instances through the managed application portal experience. This repo treats that as the supported customer path.
 
-**Using Azure CLI:**
+**Definition inventory example:**
 ```bash
 # Get the definition resource ID (from shared subscription)
-DEFINITION_ID="/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network"
-
-# Deploy to your subscription
-az group create -n rg-avd-prod -l westus3
-
-az deployment group create \
-  -g rg-avd-prod \
-  -n "avd-deployment" \
-  --template-spec "$DEFINITION_ID" \
-  --parameters \
-    hostPoolName="avd-hostpool" \
-    instanceCount=3 \
-    vmSize="Standard_D2s_v3" \
-    deliveryMode="PooledDesktopAndRemoteApp" \
-    adminUsername="azureuser" \
-    adminPassword="<SecurePassword>" \
-    existingVnetName="my-vnet" \
-    existingVnetResourceGroupName="my-vnet-rg" \
-    sessionHostSubnetName="avd-subnet" \
-    privateEndpointSubnetName="pe-subnet"
+DEFINITION_ID="/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
+az resource show --ids "$DEFINITION_ID"
 ```
 
-**Using PowerShell:**
+**Engineering validation path:**
+
+Use [infra/main.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/main.bicep) and [infra/azuredeploy.json](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/azuredeploy.json) only for internal parity testing, automation validation, and break-glass troubleshooting.
+
+**Definition inventory via PowerShell:**
 ```powershell
-$definitionId = "/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network"
-
-az group create -n rg-avd-prod -l westus3
-
-az deployment group create `
-  -g rg-avd-prod `
-  -n "avd-deployment" `
-  --template-spec "$definitionId" `
-  --parameters `
-    hostPoolName="avd-hostpool" `
-    instanceCount=3 `
-    vmSize="Standard_D2s_v3" `
-    deliveryMode="PooledDesktopAndRemoteApp" `
-    adminUsername="azureuser" `
-    adminPassword="<SecurePassword>" `
-    existingVnetName="my-vnet" `
-    existingVnetResourceGroupName="my-vnet-rg" `
-    sessionHostSubnetName="avd-subnet" `
-    privateEndpointSubnetName="pe-subnet"
+$definitionId = "/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
+az resource show --ids "$definitionId"
 ```
 
 ### Multi-Tenant Deployment
@@ -213,7 +173,7 @@ To enable users in other Azure AD tenants to deploy from a shared published defi
 1. **Publish definition in shared subscription** (steps above)
 2. **Share the definition resource ID** with other organizations:
    ```
-   /subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network
+  /subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm
    ```
 3. **Users authenticate** with their own Azure credentials
 4. **Each user deploys** to their own subscription with their own resources
@@ -257,7 +217,7 @@ No cross-tenant permissions needed — each user manages their own deployed reso
 - **Monitoring**: Log Analytics workspace plus Azure Monitor Agent, Data Collection Rule associations, and AVD/FSLogix diagnostic settings
 - **Application Publishing**: Desktop app group, RemoteApp app group, or both from the same template
 - **Access Assignment**: Use `desktopAccessAssignments` and `remoteAppAccessAssignments` for typed `User`, `Group`, or `ServicePrincipal` assignment scopes. The legacy `avdUserObjectIds` input is still supported as a compatibility shortcut for shared user assignments.
-- **Security**: TLS 1.2 enforced on storage, no shared key access, and a CSE-driven AVD agent install using a GitHub-hosted script to avoid Windows command-line length limits
+- **Security**: TLS 1.2 enforced on storage, no shared key access, and an inline VM RunCommand-based AVD agent install that avoids runtime GitHub script dependencies
 
 ## Prerequisites
 
