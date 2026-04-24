@@ -1,16 +1,12 @@
-# Azure Virtual Desktop + Landing Zone
+# Azure Virtual Desktop + Landing Zone (AVM Modernization Lane)
 
-Production-ready Azure Virtual Desktop deployment with Landing Zone architecture. Includes validated `PersonalDesktop`, `PooledRemoteApp`, and `PooledDesktopAndRemoteApp` delivery modes, marketplace or Azure Compute Gallery session host images, FSLogix profile containers, Entra ID join, brownfield or greenfield networking, monitoring, and typed access assignments.
+Parallel modernization lane for the Azure Virtual Desktop deployment. This repo starts from the stable `E2EAVDDeployment` baseline and is intended for AVM-focused modernization and end-to-end validation without changing the current production deployment path.
 
 ## Deploy to Azure
 
 ### One-Click Deployment with Brownfield/Greenfield Networking ⭐
 
-Click the button below for a guided deployment with dynamic networking selection:
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-End-AVD-Deployment%2Fmaster%2Finfra%2Fmanagedapp%2Fdist%2FmainTemplate.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-End-AVD-Deployment%2Fmaster%2Finfra%2Fmanagedapp%2FcreateUiDefinition.json)
-
-**Always uses latest `master` branch.**
+This repo should use its own branch-specific or repo-specific Deploy-to-Azure link after the AVM lane is published. Do not reuse the stable repo's production portal link here.
 **What You Get:**
 - Multi-step portal wizard (5 steps)
 - **Network mode selector** — use an existing VNet or create a new spoke VNet
@@ -31,11 +27,11 @@ Click the button below for a guided deployment with dynamic networking selection
 8. Access: (Optional) User object IDs for RBAC assignment
 9. Review and create
 
-**Managed App Details:**
-- **Subscription:** `830ef649-535d-4642-9436-356f9619c2e4`
-- **Resource Group:** `rg-avd-managedapp-def`
-- **Definition Name:** `avd-existing-network`
-- **Location:** westus3
+**Managed App Details for the AVM lane:**
+- Publish a separate managed application definition for this repo.
+- Use a separate package URI from the stable lane.
+- Recommended definition name: `avd-existing-network-avm`
+- Recommended validation resource group: `rg-avd-managedapp-def-avm`
 
 ---
 
@@ -43,10 +39,10 @@ Click the button below for a guided deployment with dynamic networking selection
 
 ### CLI Deployment with VNet/Subnet Dropdowns
 
-You can also deploy using Azure CLI with the same VNet/subnet dropdown experience:
+You can also deploy using Azure CLI with the same VNet/subnet dropdown experience once this AVM lane has its own published managed application definition:
 ```bash
 # Define parameters
-DEFINITION_ID="/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network"
+DEFINITION_ID="/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
 SUBSCRIPTION_ID="your-subscription-id"
 RESOURCE_GROUP="your-resource-group"
 
@@ -70,7 +66,7 @@ az deployment group create \
 
 Or deploy via PowerShell:
 ```powershell
-$definitionId = "/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network"
+$definitionId = "/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
 
 az deployment group create `
   -g "your-resource-group" `
@@ -88,11 +84,9 @@ az deployment group create `
 
 ### Option 2: ARM Template Deployment
 
-Deploy directly from GitHub ARM template with portal form:
+Deploy directly from this repo's own branch-specific or repo-specific ARM template and UI definition after publishing them from the AVM lane.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-End-AVD-Deployment%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-End-AVD-Deployment%2Fmaster%2Finfra%2FcreateUiDefinition.json)
-
-**Note:** Requires parameter form entry; portal UI varies by template version.
+**Note:** Do not point this repo at the stable repo's raw GitHub template URLs. Use AVM-lane-specific URLs only.
 
 ---
 

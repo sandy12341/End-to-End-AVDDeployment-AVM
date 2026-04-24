@@ -4,13 +4,13 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('Name of the managed application definition')
-param managedApplicationDefinitionName string = 'avd-existing-network'
+param managedApplicationDefinitionName string = 'avd-existing-network-avm'
 
 @description('Display name shown in the Azure service catalog')
-param definitionDisplayName string = 'Azure Virtual Desktop + ALZ'
+param definitionDisplayName string = 'Azure Virtual Desktop + ALZ (AVM)'
 
 @description('Description shown in the Azure service catalog')
-param definitionDescription string = 'Azure Virtual Desktop deployment that uses an existing VNet and existing subnets selected through a managed application portal wizard.'
+param definitionDescription string = 'Azure Virtual Desktop AVM modernization deployment that uses an existing VNet and existing subnets selected through a managed application portal wizard.'
 
 @description('URI of the managed application package zip file')
 param packageFileUri string
