@@ -169,6 +169,13 @@ The operator-facing managed application flow is now split into two dedicated ent
 
 The exact package URI map and publication commands are documented in [docs/ManagedApp-Publishing.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/ManagedApp-Publishing.md).
 
+Portal launch shortcuts:
+
+- [Open Manage Existing AVD Deployment](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview)
+- [Open Launch Day-2 Operations](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview)
+
+These links intentionally open the published definition resource blade, which is the safer portal entrypoint than relying on an undocumented direct-create URL shape. From that blade, choose `Create managed application`.
+
 1. Manage Existing AVD Deployment
 - Managed application definition name: `avd-manage-existing-avm`
 - Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm`

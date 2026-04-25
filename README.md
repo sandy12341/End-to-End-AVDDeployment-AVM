@@ -30,10 +30,16 @@ What you get:
 
 #### 2. Manage Existing AVD Deployment
 
+[![Open Manage Existing AVD Deployment](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview)
+
 Managed application definition: `avd-manage-existing-avm`
 
 Live definition ID:
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm`
+
+Portal behavior:
+- opens the published application definition in Azure Portal
+- from that blade, select `Create managed application` to launch the deployment wizard
 
 Use this entrypoint for:
 - add session hosts to an existing host pool
@@ -47,10 +53,16 @@ Publication status:
 
 #### 3. Launch Day-2 Operations
 
+[![Open Launch Day-2 Operations](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview)
+
 Managed application definition: `avd-day2-operations-avm`
 
 Live definition ID:
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm`
+
+Portal behavior:
+- opens the published application definition in Azure Portal
+- from that blade, select `Create managed application` to launch the deployment wizard
 
 Use this entrypoint for:
 - configure scaling plans
