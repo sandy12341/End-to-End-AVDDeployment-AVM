@@ -39,7 +39,7 @@ Live definition ID:
 
 Portal behavior:
 - opens the published application definition in Azure Portal
-- from that blade, select `Create managed application` to launch the deployment wizard
+- from that blade, select `Deploy from definition` to launch the deployment wizard
 
 Use this entrypoint for:
 - add session hosts to an existing host pool
@@ -62,7 +62,7 @@ Live definition ID:
 
 Portal behavior:
 - opens the published application definition in Azure Portal
-- from that blade, select `Create managed application` to launch the deployment wizard
+- from that blade, select `Deploy from definition` to launch the deployment wizard
 
 Use this entrypoint for:
 - configure scaling plans
