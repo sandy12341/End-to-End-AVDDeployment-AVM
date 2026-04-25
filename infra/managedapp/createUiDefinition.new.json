@@ -1,0 +1,1789 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true,
+      "basics": {
+        "description": "Deploy a new Azure Virtual Desktop environment with a dedicated greenfield entrypoint that stays focused on new environment creation.",
+        "resourceGroup": {
+          "allowExisting": true
+        },
+        "subscription": {
+          "resourceProviders": [
+            "Microsoft.Compute",
+            "Microsoft.DesktopVirtualization",
+            "Microsoft.Insights",
+            "Microsoft.KeyVault",
+            "Microsoft.Network",
+            "Microsoft.OperationalInsights",
+            "Microsoft.Storage"
+          ]
+        },
+        "location": {
+          "resourceTypes": [
+            "Microsoft.Compute/virtualMachines",
+            "Microsoft.DesktopVirtualization/hostPools",
+            "Microsoft.Storage/storageAccounts"
+          ]
+        }
+      }
+    },
+    "basics": [
+      {
+        "name": "deploymentPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Deployment Prefix",
+        "defaultValue": "avd1",
+        "toolTip": "Naming prefix used for resources other than the host pool.",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{1,6}$",
+          "validationMessage": "Use 1-6 lowercase letters or digits."
+        }
+      },
+      {
+        "name": "environment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Environment",
+        "defaultValue": "dev",
+        "constraints": {
+          "required": true,
+          "allowedValues": [
+            {
+              "label": "Development",
+              "value": "dev"
+            },
+            {
+              "label": "Test",
+              "value": "test"
+            },
+            {
+              "label": "Production",
+              "value": "prod"
+            }
+          ]
+        }
+      }
+    ],
+    "steps": [
+      {
+        "name": "deploymentScenario",
+        "label": "Scenario",
+        "visible": false,
+        "elements": [
+          {
+            "name": "deploymentScenario",
+            "type": "Microsoft.Common.DropDown",
+            "label": "What would you like to do?",
+            "defaultValue": "NewDeployment",
+            "toolTip": "New deployment keeps the current end-to-end create flow. The other scenarios establish the Phase 6.1 brownfield operating model and are currently classified here while their dedicated actions are wired in.",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "New AVD deployment",
+                  "value": "NewDeployment"
+                },
+                {
+                  "label": "Expand or update existing AVD deployment",
+                  "value": "ExpandExistingDeployment"
+                },
+                {
+                  "label": "Day-2 operations for existing AVD deployment",
+                  "value": "Day2Operations"
+                }
+              ]
+            }
+          },
+          {
+            "name": "expandExistingDeploymentMessage",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment')]",
+            "options": {
+              "text": "Existing deployment expansion now supports adding session hosts to an existing host pool. Select the target host pool, review the detected host pool posture, then provide VM, image, subnet, and authentication settings for the new hosts only."
+            }
+          },
+          {
+            "name": "day2OperationsMessage",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations')]",
+            "options": {
+              "text": "Day-2 operations now includes pooled host pool scaling plan management. Select an existing host pool, define the schedule, and the deployment will only create or update the scaling plan attachment without recreating session hosts."
+            }
+          }
+        ]
+      },
+      {
+        "name": "brownfieldTarget",
+        "label": "Existing AVD target",
+        "visible": "[not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'))]",
+        "elements": [
+          {
+            "name": "selectedHostPool",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing host pool",
+            "resourceType": "Microsoft.DesktopVirtualization/hostPools",
+            "toolTip": "Select the existing host pool that will be inspected and targeted by the brownfield action.",
+            "constraints": {
+              "required": "[not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'))]"
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "selectedHostPoolApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat(steps('brownfieldTarget').selectedHostPool.id, '?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "scalingPlansApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/scalingPlans?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "appGroupsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "workspacesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/workspaces?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolDiagnosticsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat(steps('brownfieldTarget').selectedHostPool.id, '/providers/microsoft.insights/diagnosticSettings?api-version=2021-05-01-preview'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolInspectionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType'))]",
+            "options": {
+              "text": "[concat('Detected host pool type: ', steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, '. Load balancer: ', steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, '. Preferred app group: ', steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, '. Auth posture: ', if(contains(string(steps('brownfieldTarget').selectedHostPoolApi.properties.customRdpProperty), 'targetisaadjoined:i:1'), 'EntraID', 'HybridJoin'), '.')]"
+            }
+          },
+          {
+            "name": "relatedResourceSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[or(contains(steps('brownfieldTarget').appGroupsApi, 'value'), contains(steps('brownfieldTarget').workspacesApi, 'value'))]",
+            "options": {
+              "text": "[concat('Discovered related app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)))), '. Discovered related workspaces: ', string(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)))), '.')]"
+            }
+          },
+          {
+            "name": "monitoringInspectionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value')]",
+            "options": {
+              "text": "[if(greater(length(steps('brownfieldTarget').hostPoolDiagnosticsApi.value), 0), 'Existing host pool diagnostic settings detected for the selected host pool.', 'No host pool diagnostic settings detected for the selected host pool.')]"
+            }
+          },
+          {
+            "name": "scalingPlanInspectionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[contains(steps('brownfieldTarget').scalingPlansApi, 'value')]",
+            "options": {
+              "text": "[if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'Existing scaling plan attachment detected for the selected host pool in this resource group.', 'No existing scaling plan attachment detected for the selected host pool in this resource group.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "expandOperation",
+        "label": "Expansion action",
+        "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment')]",
+        "elements": [
+          {
+            "name": "expandOperation",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Choose an expansion action",
+            "defaultValue": "AddSessionHosts",
+            "constraints": {
+              "required": "[equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment')]",
+              "allowedValues": [
+                {
+                  "label": "Add session hosts",
+                  "value": "AddSessionHosts"
+                },
+                {
+                  "label": "Align monitoring posture",
+                  "value": "AlignMonitoringPosture"
+                },
+                {
+                  "label": "Remediate VM/image baseline with replacement hosts",
+                  "value": "RemediateVmImageBaseline"
+                }
+              ]
+            }
+          },
+          {
+            "name": "expandOperationNote",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Expand Existing Deployment now supports adding session hosts, aligning monitoring posture, or staging replacement session hosts with a new VM/image baseline without recreating the rest of the environment."
+            }
+          }
+        ]
+      },
+      {
+        "name": "day2Operation",
+        "label": "Day-2 action",
+        "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations')]",
+        "elements": [
+          {
+            "name": "day2Operation",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Choose an operation",
+            "defaultValue": "ConfigureScalingPlan",
+            "constraints": {
+              "required": "[equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations')]",
+              "allowedValues": [
+                {
+                  "label": "Configure scaling plan",
+                  "value": "ConfigureScalingPlan"
+                },
+                {
+                  "label": "Align monitoring posture",
+                  "value": "AlignMonitoringPosture"
+                },
+                {
+                  "label": "Update access assignments",
+                  "value": "UpdateAccessAssignments"
+                },
+                {
+                  "label": "Reconcile FSLogix private connectivity",
+                  "value": "ReconcileFsLogixPrivateConnectivity"
+                },
+                {
+                  "label": "Generate operational summary",
+                  "value": "GenerateOperationalSummary"
+                }
+              ]
+            }
+          },
+          {
+            "name": "day2OperationNote",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Day-2 operations now includes scaling plan management, monitoring alignment, access assignment updates, FSLogix private connectivity reconciliation, and a no-change operational summary path."
+            }
+          }
+        ]
+      },
+      {
+        "name": "scalingPlanSettings",
+        "label": "Scaling plan",
+        "visible": "[and(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), equals(steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Pooled')))]",
+        "elements": [
+          {
+            "name": "scalingPlanName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Scaling plan name",
+            "defaultValue": "sp-avd-scaling",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan'))]",
+                "regex": "^[A-Za-z0-9@._ -]{3,64}$",
+              "validationMessage": "Use 3-64 letters, numbers, spaces, periods, underscores, or hyphens."
+            }
+          },
+          {
+            "name": "scalingPlanFriendlyName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Friendly name",
+            "defaultValue": "AVD Scaling Plan",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "scalingPlanDescription",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Description",
+            "defaultValue": "Brownfield day-2 scaling plan managed by the AVD deployment wizard.",
+            "multiLine": true,
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "scalingPlanTimeZone",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Time zone",
+            "defaultValue": "UTC",
+            "toolTip": "Use a Windows time zone identifier such as UTC, GMT Standard Time, or Pacific Standard Time.",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "scalingPlanExclusionTag",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Exclusion tag (optional)",
+            "defaultValue": "",
+            "toolTip": "Any session host carrying this tag is excluded from scaling actions.",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "weekdayRampUpStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekday ramp-up start",
+            "defaultValue": "06:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekdayPeakStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekday peak start",
+            "defaultValue": "09:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekdayRampDownStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekday ramp-down start",
+            "defaultValue": "17:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekdayOffPeakStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekday off-peak start",
+            "defaultValue": "20:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekendRampUpStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekend ramp-up start",
+            "defaultValue": "08:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekendPeakStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekend peak start",
+            "defaultValue": "10:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekendRampDownStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekend ramp-down start",
+            "defaultValue": "15:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "weekendOffPeakStartTime",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Weekend off-peak start",
+            "defaultValue": "18:00",
+            "constraints": {
+              "required": true,
+              "regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "validationMessage": "Use 24-hour HH:mm format."
+            }
+          },
+          {
+            "name": "rampUpLoadBalancingAlgorithm",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Ramp-up load balancing",
+            "defaultValue": "BreadthFirst",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Breadth-first",
+                  "value": "BreadthFirst"
+                },
+                {
+                  "label": "Depth-first",
+                  "value": "DepthFirst"
+                }
+              ]
+            }
+          },
+          {
+            "name": "peakLoadBalancingAlgorithm",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Peak load balancing",
+            "defaultValue": "BreadthFirst",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Breadth-first",
+                  "value": "BreadthFirst"
+                },
+                {
+                  "label": "Depth-first",
+                  "value": "DepthFirst"
+                }
+              ]
+            }
+          },
+          {
+            "name": "rampDownLoadBalancingAlgorithm",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Ramp-down load balancing",
+            "defaultValue": "DepthFirst",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Breadth-first",
+                  "value": "BreadthFirst"
+                },
+                {
+                  "label": "Depth-first",
+                  "value": "DepthFirst"
+                }
+              ]
+            }
+          },
+          {
+            "name": "offPeakLoadBalancingAlgorithm",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Off-peak load balancing",
+            "defaultValue": "DepthFirst",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Breadth-first",
+                  "value": "BreadthFirst"
+                },
+                {
+                  "label": "Depth-first",
+                  "value": "DepthFirst"
+                }
+              ]
+            }
+          },
+          {
+            "name": "minimumHostsPct",
+            "type": "Microsoft.Common.Slider",
+            "label": "Minimum running hosts (%)",
+            "min": 0,
+            "max": 100,
+            "defaultValue": 20,
+            "showStepMarkers": true
+          },
+          {
+            "name": "capacityThresholdPct",
+            "type": "Microsoft.Common.Slider",
+            "label": "Capacity threshold (%)",
+            "min": 1,
+            "max": 100,
+            "defaultValue": 75,
+            "showStepMarkers": true
+          },
+          {
+            "name": "rampDownWaitTimeMinutes",
+            "type": "Microsoft.Common.Slider",
+            "label": "Ramp-down wait time (minutes)",
+            "min": 0,
+            "max": 120,
+            "defaultValue": 30,
+            "showStepMarkers": true
+          },
+          {
+            "name": "rampDownStopHostsWhen",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Stop hosts when",
+            "defaultValue": "ZeroSessions",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Zero sessions",
+                  "value": "ZeroSessions"
+                },
+                {
+                  "label": "Zero active sessions",
+                  "value": "ZeroActiveSessions"
+                }
+              ]
+            }
+          },
+          {
+            "name": "rampDownForceLogoffUsers",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Force logoff during ramp-down",
+            "defaultValue": false
+          },
+          {
+            "name": "rampDownNotificationMessage",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Ramp-down notification message",
+            "defaultValue": "This session host will be stopped by the Azure Virtual Desktop scaling plan.",
+            "multiLine": true,
+            "constraints": {
+              "required": false
+            }
+          }
+        ]
+      },
+      {
+        "name": "scalingPlanValidation",
+        "label": "Scaling plan validation",
+        "visible": "[and(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), not(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), equals(steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Pooled'))))]",
+        "elements": [
+          {
+            "name": "scalingPlanValidationMessage",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Scaling plan management is currently supported only for pooled host pools. Select a pooled host pool to continue with the day-2 scaling plan action."
+            }
+          }
+        ]
+      },
+      {
+        "name": "accessAssignmentSettings",
+        "label": "Access assignments",
+        "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments'))]",
+        "elements": [
+          {
+            "name": "accessAssignmentSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Apply assignments across discovered desktop app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop')))), '. Apply assignments across discovered RemoteApp app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp')))), '.')]"
+            }
+          },
+          {
+            "name": "desktopAssignments",
+            "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "Desktop app group access assignments",
+            "label": "Desktop app group access assignments",
+            "defaultValue": [],
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 50
+                }
+              },
+              "columns": [
+                {
+                  "id": "principalId",
+                  "header": "Object ID",
+                  "width": "2fr",
+                  "element": {
+                    "name": "principalId",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                      "validationMessage": "Must be a valid GUID."
+                    }
+                  }
+                },
+                {
+                  "id": "principalType",
+                  "header": "Type",
+                  "width": "1fr",
+                  "element": {
+                    "name": "principalType",
+                    "type": "Microsoft.Common.DropDown",
+                    "defaultValue": "User",
+                    "constraints": {
+                      "required": true,
+                      "allowedValues": [
+                        {
+                          "label": "User",
+                          "value": "User"
+                        },
+                        {
+                          "label": "Group",
+                          "value": "Group"
+                        },
+                        {
+                          "label": "ServicePrincipal",
+                          "value": "ServicePrincipal"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "remoteAppAssignments",
+            "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "RemoteApp group access assignments",
+            "label": "RemoteApp group access assignments",
+            "defaultValue": [],
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 50
+                }
+              },
+              "columns": [
+                {
+                  "id": "principalId",
+                  "header": "Object ID",
+                  "width": "2fr",
+                  "element": {
+                    "name": "principalId",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                      "validationMessage": "Must be a valid GUID."
+                    }
+                  }
+                },
+                {
+                  "id": "principalType",
+                  "header": "Type",
+                  "width": "1fr",
+                  "element": {
+                    "name": "principalType",
+                    "type": "Microsoft.Common.DropDown",
+                    "defaultValue": "User",
+                    "constraints": {
+                      "required": true,
+                      "allowedValues": [
+                        {
+                          "label": "User",
+                          "value": "User"
+                        },
+                        {
+                          "label": "Group",
+                          "value": "Group"
+                        },
+                        {
+                          "label": "ServicePrincipal",
+                          "value": "ServicePrincipal"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "monitoringSettings",
+        "label": "Monitoring posture",
+        "visible": "[or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')))]",
+        "elements": [
+          {
+            "name": "monitoringWorkspaceMode",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Log Analytics workspace mode",
+            "defaultValue": "CreateNew",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Create new workspace in the target host pool resource group",
+                  "value": "CreateNew"
+                },
+                {
+                  "label": "Use an existing Log Analytics workspace",
+                  "value": "UseExisting"
+                }
+              ]
+            }
+          },
+          {
+            "name": "monitoringWorkspaceName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "New Log Analytics workspace name",
+            "defaultValue": "log-avd-brownfield",
+            "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+              "regex": "^[A-Za-z0-9][A-Za-z0-9_-]{2,61}[A-Za-z0-9]$",
+              "validationMessage": "Use 4-63 letters, numbers, underscores, or hyphens."
+            }
+          },
+          {
+            "name": "existingLogAnalyticsWorkspace",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing Log Analytics workspace",
+            "resourceType": "Microsoft.OperationalInsights/workspaces",
+            "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting')]",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting')]"
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "monitoringRetentionDays",
+            "type": "Microsoft.Common.Slider",
+            "label": "Retention (days)",
+            "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+            "min": 30,
+            "max": 730,
+            "defaultValue": 30,
+            "showStepMarkers": true
+          },
+          {
+            "name": "monitoringSettingsNote",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "This action aligns control-plane diagnostic settings on the selected host pool, discovered workspaces, and discovered application groups. It does not redeploy session hosts or guest-level Azure Monitor Agent associations."
+            }
+          }
+        ]
+      },
+      {
+        "name": "fslogixSettings",
+        "label": "FSLogix private connectivity",
+        "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity'))]",
+        "elements": [
+          {
+            "name": "fslogixStorageAccount",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "FSLogix storage account",
+            "resourceType": "Microsoft.Storage/storageAccounts",
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "fslogixStorageApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), not(empty(steps('fslogixSettings').fslogixStorageAccount.id))), concat(steps('fslogixSettings').fslogixStorageAccount.id, '?api-version=2025-01-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "fslogixPrivateEndpointConnectionsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), not(empty(steps('fslogixSettings').fslogixStorageAccount.id))), concat(steps('fslogixSettings').fslogixStorageAccount.id, '/privateEndpointConnections?api-version=2025-01-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "existingVnet",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing virtual network",
+            "resourceType": "Microsoft.Network/virtualNetworks",
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "subnetsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').existingVnet, 'id'), not(empty(steps('fslogixSettings').existingVnet.id))), concat(steps('fslogixSettings').existingVnet.id, '/subnets?api-version=2023-09-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "privateEndpointSubnetName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Private endpoint subnet",
+            "placeholder": "Select a subnet...",
+            "constraints": {
+              "required": true,
+              "allowedValues": "[map(if(contains(steps('fslogixSettings').subnetsApi, 'value'), steps('fslogixSettings').subnetsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, ' (', coalesce(item.properties.addressPrefix, ''), ')\",\"value\":\"', item.name, '\"}')))]"
+            }
+          },
+          {
+            "name": "privateDnsZoneMode",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Private DNS mode",
+            "defaultValue": "CreateNew",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Create and link private DNS zone",
+                  "value": "CreateNew"
+                },
+                {
+                  "label": "Skip DNS zone creation",
+                  "value": "Skip"
+                }
+              ]
+            }
+          },
+          {
+            "name": "fslogixReviewSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[contains(steps('fslogixSettings').fslogixStorageApi, 'properties')]",
+            "options": {
+              "text": "[concat('Public network access: ', steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, '. Private endpoint connections detected: ', string(length(if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value, take(split('x', ','), 0)))), '. Reconciliation will create the file private endpoint in subnet ', steps('fslogixSettings').privateEndpointSubnetName, '.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "brownfieldReview",
+        "label": "Review action",
+        "visible": "[not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'))]",
+        "elements": [
+          {
+            "name": "brownfieldReviewSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AddSessionHosts')), concat('Action: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) to existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing host pool, workspace, app groups, storage, and scaling plan resources are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Control-plane diagnostics will target ', if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), concat('a new workspace named ', steps('monitoringSettings').monitoringWorkspaceName), 'the selected existing Log Analytics workspace'), '.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline')), concat('Action: stage ', string(steps('instanceDetails').sessionHostCount), ' replacement session host(s) with the requested VM/image baseline for host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing hosts are not removed automatically.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), concat('Action: ', if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'update the existing scaling plan attachment', 'create and attach a scaling plan'), ' for pooled host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), 'Action: update access assignments across the discovered application groups.', if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), 'Action: reconcile FSLogix storage private connectivity by creating a private endpoint and applying the selected DNS mode.', 'Action: generate a no-change operational summary for the selected brownfield target.'))))))]"
+            }
+          },
+          {
+            "name": "brownfieldReviewDetails",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Target host pool resource group: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '. Detected host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '. Related app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)))), '. Related workspaces: ', string(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)))), '.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "instanceDetails",
+        "label": "Instance details",
+        "visible": "[or(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))))]",
+        "elements": [
+          {
+            "name": "hostPoolName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Host pool name",
+            "defaultValue": "[concat('hp-avd-', basics('deploymentPrefix'), '-', basics('environment'))]",
+            "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')]",
+            "constraints": {
+              "required": true,
+              "regex": "^[A-Za-z0-9-]{3,64}$",
+              "validationMessage": "Use 3-64 letters, numbers, or hyphens."
+            }
+          },
+          {
+            "name": "sessionHostCount",
+            "type": "Microsoft.Common.Slider",
+            "label": "Session Host Count",
+            "min": 1,
+            "max": 10,
+            "defaultValue": 1,
+            "showStepMarkers": true
+          },
+          {
+            "name": "vmSize",
+            "type": "Microsoft.Compute.SizeSelector",
+            "label": "VM Size",
+            "toolTip": "Select the Azure VM size for AVD session hosts. Recommended sizes are pre-filtered for AVD workloads.",
+            "recommendedSizes": [
+              "Standard_D2ads_v5",
+              "Standard_D4ads_v5",
+              "Standard_D8ads_v5",
+              "Standard_D16ads_v5",
+              "Standard_E2ads_v5",
+              "Standard_E4ads_v5",
+              "Standard_E8ads_v5"
+            ],
+            "constraints": {
+              "allowedSizes": []
+            },
+            "options": {
+              "hideDiskTypeFilter": false
+            },
+            "osPlatform": "Windows",
+            "imageReference": {
+              "publisher": "microsoftwindowsdesktop",
+              "offer": "office-365",
+              "sku": "win11-24h2-avd-m365"
+            },
+            "count": "[steps('instanceDetails').sessionHostCount]"
+          },
+          {
+            "name": "imageSource",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Image source",
+            "defaultValue": "Marketplace",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Marketplace",
+                  "value": "Marketplace"
+                },
+                {
+                  "label": "Azure Compute Gallery",
+                  "value": "AzureComputeGallery"
+                }
+              ]
+            }
+          },
+          {
+            "name": "avdCompatibleMarketplaceOs",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Compatible OS",
+            "toolTip": "Curated Azure Virtual Desktop-supported operating systems based on Microsoft Learn prerequisites.",
+            "defaultValue": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}",
+            "filter": true,
+            "visible": "[equals(steps('instanceDetails').imageSource, 'Marketplace')]",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'Marketplace')]",
+              "allowedValues": [
+                {
+                  "label": "Windows 11 Enterprise multi-session + Microsoft 365 Apps",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 11 Enterprise multi-session",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"windows-11\",\"sku\":\"win11-24h2-avd\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 11 Enterprise",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"windows-11\",\"sku\":\"win11-24h2-ent\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 10 Enterprise multi-session + Microsoft 365 Apps",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win10-22h2-avd-m365\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 10 Enterprise multi-session",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"Windows-10\",\"sku\":\"win10-22h2-avd\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 10 Enterprise",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"Windows-10\",\"sku\":\"win10-22h2-ent\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2025",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"WindowsServer\",\"sku\":\"2025-datacenter\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2022",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"windowsserver2022\",\"sku\":\"2022-datacenter\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2019",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"WindowsServer\",\"sku\":\"2019-Datacenter\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2016",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"WindowsServer\",\"sku\":\"2016-Datacenter\",\"version\":\"latest\"}"
+                }
+              ]
+            }
+          },
+          {
+            "name": "galleryPicker",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Azure Compute Gallery",
+            "resourceType": "Microsoft.Compute/galleries",
+            "visible": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+            "toolTip": "Select an existing Azure Compute Gallery. Use the subscription selector in the picker to browse across subscriptions. The default view shows galleries in the subscription selected on the Basics tab.",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]"
+            },
+            "options": {}
+          },
+          {
+            "name": "imageDefinitionsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), not(empty(steps('instanceDetails').galleryPicker.id)))), concat(steps('instanceDetails').galleryPicker.id, '/images?api-version=2022-08-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "galleryImageDefinitionName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Image definition",
+            "placeholder": "Select an image definition...",
+            "visible": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+            "toolTip": "Select the gallery image definition to use for session host VMs.",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+              "allowedValues": "[map(if(contains(steps('instanceDetails').imageDefinitionsApi, 'value'), steps('instanceDetails').imageDefinitionsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]"
+            }
+          },
+          {
+            "name": "imageVersionsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), and(not(empty(steps('instanceDetails').galleryPicker.id)), not(empty(steps('instanceDetails').galleryImageDefinitionName))))), concat(steps('instanceDetails').galleryPicker.id, '/images/', steps('instanceDetails').galleryImageDefinitionName, '/versions?api-version=2022-08-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "galleryImageVersion",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Gallery image version",
+            "placeholder": "Select a version...",
+            "visible": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+            "toolTip": "Select the image version to deploy. Versions are listed from the selected image definition.",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+              "allowedValues": "[map(if(contains(steps('instanceDetails').imageVersionsApi, 'value'), steps('instanceDetails').imageVersionsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]"
+            }
+          },
+          {
+            "name": "sessionHostSecurityType",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Session host security type",
+            "defaultValue": "Auto",
+            "toolTip": "Auto uses Trusted Launch for Azure Compute Gallery images and Standard for Marketplace images. Choose Trusted Launch explicitly if your gallery image requires it.",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Standard",
+                  "value": "Standard"
+                },
+                {
+                  "label": "Trusted Launch",
+                  "value": "TrustedLaunch"
+                }
+              ]
+            }
+          },
+          {
+            "name": "avdMode",
+            "type": "Microsoft.Common.DropDown",
+            "label": "AVD Mode",
+            "defaultValue": "PooledDesktopAndRemoteApp",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Legacy pooled desktop",
+                  "value": "LegacyPooledDesktop"
+                },
+                {
+                  "label": "Personal Desktop",
+                  "value": "PersonalDesktop"
+                },
+                {
+                  "label": "Pooled RemoteApp",
+                  "value": "PooledRemoteApp"
+                },
+                {
+                  "label": "Pooled Desktop + RemoteApp",
+                  "value": "PooledDesktopAndRemoteApp"
+                }
+              ]
+            }
+          },
+          {
+            "name": "hostPoolTypePooled",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Host Pool Type",
+            "defaultValue": "Pooled",
+            "visible": "[not(equals(steps('instanceDetails').avdMode, 'PersonalDesktop'))]",
+            "toolTip": "This value follows the selected AVD Mode automatically.",
+            "constraints": {
+              "required": "[not(equals(steps('instanceDetails').avdMode, 'PersonalDesktop'))]",
+              "allowedValues": [
+                {
+                  "label": "Pooled",
+                  "value": "Pooled"
+                }
+              ]
+            }
+          },
+          {
+            "name": "hostPoolTypePersonal",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Host Pool Type",
+            "defaultValue": "Personal",
+            "visible": "[equals(steps('instanceDetails').avdMode, 'PersonalDesktop')]",
+            "toolTip": "This value follows the selected AVD Mode automatically.",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').avdMode, 'PersonalDesktop')]",
+              "allowedValues": [
+                {
+                  "label": "Personal",
+                  "value": "Personal"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "networking",
+        "label": "Networking",
+        "visible": "[or(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))))]",
+        "elements": [
+          {
+            "name": "networkMode",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Network deployment mode",
+            "defaultValue": "Greenfield",
+            "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')]",
+            "toolTip": "Create new network provisions a dedicated spoke VNet. Use existing network deploys AVD into a VNet and subnets you already manage.",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Create new network — new spoke VNet and subnets",
+                  "value": "Greenfield"
+                },
+                {
+                  "label": "Use existing network — existing VNet and subnets",
+                  "value": "Brownfield"
+                }
+              ]
+            }
+          },
+          {
+            "name": "newVnetName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Spoke VNet name",
+            "defaultValue": "vnet-avd-spoke",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "Name for the new spoke virtual network to be created for AVD session hosts.",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9_.\\-]{0,62}[a-zA-Z0-9_]$",
+              "validationMessage": "2-64 characters. Letters, numbers, underscores, hyphens and periods only."
+            }
+          },
+          {
+            "name": "newVnetAddressPrefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Spoke VNet address space",
+            "defaultValue": "10.20.0.0/16",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "CIDR block for the new spoke VNet (e.g. 10.20.0.0/16). Must not overlap with your hub or on-premises networks.",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+              "regex": "^(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})/(8|9|1[0-9]|2[0-9]|3[0-2])$",
+              "validationMessage": "Enter a valid private CIDR such as 10.20.0.0/16."
+            }
+          },
+          {
+            "name": "newSessionHostSubnetName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Session host subnet name",
+            "defaultValue": "snet-avd-sessionhosts",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "Name for the subnet where AVD session host VMs will be deployed.",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,78}[a-zA-Z0-9]$",
+              "validationMessage": "2-80 characters. Letters, numbers and hyphens only."
+            }
+          },
+          {
+            "name": "newSessionHostSubnetPrefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Session host subnet prefix",
+            "defaultValue": "10.20.1.0/24",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "CIDR block for the session host subnet. Must be within the spoke VNet address space (e.g. 10.20.1.0/24).",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+              "regex": "^(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})/(8|9|1[0-9]|2[0-9]|3[0-2])$",
+              "validationMessage": "Enter a valid CIDR such as 10.20.1.0/24."
+            }
+          },
+          {
+            "name": "newPrivateEndpointSubnetName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Private endpoint subnet name",
+            "defaultValue": "snet-avd-privateendpoints",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "Name for the subnet that will host private endpoints (FSLogix storage, monitoring).",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,78}[a-zA-Z0-9]$",
+              "validationMessage": "2-80 characters. Letters, numbers and hyphens only."
+            }
+          },
+          {
+            "name": "newPrivateEndpointSubnetPrefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Private endpoint subnet prefix",
+            "defaultValue": "10.20.2.0/27",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "CIDR block for the private endpoint subnet. /27 (32 addresses) is sufficient (e.g. 10.20.2.0/27).",
+            "constraints": {
+              "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+              "regex": "^(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})/(8|9|1[0-9]|2[0-9]|3[0-2])$",
+              "validationMessage": "Enter a valid CIDR such as 10.20.2.0/27."
+            }
+          },
+          {
+            "name": "hubVnet",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Hub virtual network (optional — for VNet peering)",
+            "resourceType": "Microsoft.Network/virtualNetworks",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), equals(steps('networking').networkMode, 'Greenfield'))]",
+            "toolTip": "Select an existing hub VNet to peer the new spoke VNet with. Leave unselected to skip peering.",
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "existingVnet",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing virtual network",
+            "resourceType": "Microsoft.Network/virtualNetworks",
+            "visible": "[or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))), equals(steps('networking').networkMode, 'Brownfield'))]",
+            "toolTip": "Select the VNet where AVD session hosts will be deployed.",
+            "constraints": {
+              "required": "[or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))), equals(steps('networking').networkMode, 'Brownfield'))]"
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "subnetsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))), equals(steps('networking').networkMode, 'Brownfield')), and(contains(steps('networking').existingVnet, 'id'), not(empty(steps('networking').existingVnet.id)))), concat(steps('networking').existingVnet.id, '/subnets?api-version=2023-09-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "sessionHostSubnetName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Session host subnet",
+            "placeholder": "Select a subnet...",
+            "visible": "[or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))), equals(steps('networking').networkMode, 'Brownfield'))]",
+            "toolTip": "Select the subnet where AVD session host VMs will be deployed.",
+            "constraints": {
+              "required": "[or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))), equals(steps('networking').networkMode, 'Brownfield'))]",
+              "allowedValues": "[map(if(contains(steps('networking').subnetsApi, 'value'), steps('networking').subnetsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, ' (', coalesce(item.properties.addressPrefix, ''), ')\",\"value\":\"', item.name, '\"}')))]"
+            }
+          },
+          {
+            "name": "privateEndpointSubnetName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Private endpoint subnet",
+            "placeholder": "Select a subnet...",
+            "visible": "[equals(steps('networking').networkMode, 'Brownfield')]",
+            "toolTip": "Select the subnet for AVD private endpoints (FSLogix storage, monitoring).",
+            "constraints": {
+              "required": "[equals(steps('networking').networkMode, 'Brownfield')]",
+              "allowedValues": "[map(if(contains(steps('networking').subnetsApi, 'value'), steps('networking').subnetsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, ' (', coalesce(item.properties.addressPrefix, ''), ')\",\"value\":\"', item.name, '\"}')))]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "storageMonitoring",
+        "label": "Storage and monitoring",
+        "visible": "[equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')]",
+        "elements": [
+          {
+            "name": "deployFSLogix",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Deploy FSLogix storage",
+            "defaultValue": true
+          },
+          {
+            "name": "storageAccountName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Storage account name",
+            "visible": "[steps('storageMonitoring').deployFSLogix]",
+            "constraints": {
+              "required": "[steps('storageMonitoring').deployFSLogix]",
+              "regex": "^[a-z0-9]{3,24}$",
+              "validationMessage": "Use 3-24 lowercase letters or digits."
+            }
+          },
+          {
+            "name": "deployFSLogixPrivateEndpoint",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Deploy private endpoint for FSLogix storage (recommended for production)",
+            "defaultValue": false,
+            "visible": "[steps('storageMonitoring').deployFSLogix]",
+            "toolTip": "Deploys a private endpoint in the private endpoint subnet and disables public storage access. Requires a private endpoint subnet — created automatically in Greenfield mode. Isolated Brownfield deployments must provide a private endpoint subnet."
+          },
+          {
+            "name": "deployMonitoring",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Deploy Log Analytics workspace and enable Monitoring",
+            "defaultValue": true,
+            "toolTip": "Creates a Log Analytics workspace, enables Azure Virtual Desktop diagnostic settings, deploys Azure Monitor Agent guest telemetry for session hosts, and sends FSLogix storage diagnostics to the workspace."
+          }
+        ]
+      },
+      {
+        "name": "access",
+        "label": "Access and applications",
+        "visible": "[or(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AddSessionHosts')))]",
+        "elements": [
+          {
+            "name": "adminUsername",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Local admin username",
+            "defaultValue": "avdadmin",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "adminPassword",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+              "password": "Local admin password",
+              "confirmPassword": "Confirm local admin password"
+            },
+            "constraints": {
+              "required": true,
+              "regex": "^(?=.{12,})(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).*$",
+              "validationMessage": "Use at least 12 characters including upper, lower, number, and symbol."
+            }
+          },
+          {
+            "name": "desktopAssignments",
+            "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "Desktop app group access assignments",
+            "label": "Desktop app group access assignments",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), or(equals(steps('instanceDetails').avdMode, 'LegacyPooledDesktop'), equals(steps('instanceDetails').avdMode, 'PersonalDesktop'), equals(steps('instanceDetails').avdMode, 'PooledDesktopAndRemoteApp')))]",
+            "defaultValue": [],
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 50
+                }
+              },
+              "columns": [
+                {
+                  "id": "principalId",
+                  "header": "Object ID",
+                  "width": "2fr",
+                  "element": {
+                    "name": "principalId",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                      "validationMessage": "Must be a valid GUID."
+                    }
+                  }
+                },
+                {
+                  "id": "principalType",
+                  "header": "Type",
+                  "width": "1fr",
+                  "element": {
+                    "name": "principalType",
+                    "type": "Microsoft.Common.DropDown",
+                    "defaultValue": "User",
+                    "constraints": {
+                      "required": true,
+                      "allowedValues": [
+                        {
+                          "label": "User",
+                          "value": "User"
+                        },
+                        {
+                          "label": "Group",
+                          "value": "Group"
+                        },
+                        {
+                          "label": "ServicePrincipal",
+                          "value": "ServicePrincipal"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "remoteAppAssignments",
+            "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "RemoteApp group access assignments",
+            "label": "RemoteApp group access assignments",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), or(equals(steps('instanceDetails').avdMode, 'PooledRemoteApp'), equals(steps('instanceDetails').avdMode, 'PooledDesktopAndRemoteApp')))]",
+            "defaultValue": [],
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 50
+                }
+              },
+              "columns": [
+                {
+                  "id": "principalId",
+                  "header": "Object ID",
+                  "width": "2fr",
+                  "element": {
+                    "name": "principalId",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                      "validationMessage": "Must be a valid GUID."
+                    }
+                  }
+                },
+                {
+                  "id": "principalType",
+                  "header": "Type",
+                  "width": "1fr",
+                  "element": {
+                    "name": "principalType",
+                    "type": "Microsoft.Common.DropDown",
+                    "defaultValue": "User",
+                    "constraints": {
+                      "required": true,
+                      "allowedValues": [
+                        {
+                          "label": "User",
+                          "value": "User"
+                        },
+                        {
+                          "label": "Group",
+                          "value": "Group"
+                        },
+                        {
+                          "label": "ServicePrincipal",
+                          "value": "ServicePrincipal"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "remoteApps",
+            "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "RemoteApp definitions",
+            "label": "RemoteApp definitions",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), or(equals(steps('instanceDetails').avdMode, 'PooledRemoteApp'), equals(steps('instanceDetails').avdMode, 'PooledDesktopAndRemoteApp')))]",
+            "toolTip": "Add one row per RemoteApp. Name and executable path are required.",
+            "defaultValue": [],
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 30
+                }
+              },
+              "columns": [
+                {
+                  "id": "name",
+                  "header": "App name",
+                  "width": "1fr",
+                  "element": {
+                    "name": "name",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Notepad",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[^\\\\/:*?\"<>|]{1,64}$",
+                      "validationMessage": "App name must be 1-64 characters and must not contain \\ / : * ? \" < > |"
+                    }
+                  }
+                },
+                {
+                  "id": "filePath",
+                  "header": "Executable path",
+                  "width": "2fr",
+                  "element": {
+                    "name": "filePath",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "C:\\Windows\\System32\\notepad.exe",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[A-Za-z]:\\\\.*\\.exe$",
+                      "validationMessage": "Must be a full Windows path ending in .exe"
+                    }
+                  }
+                },
+                {
+                  "id": "friendlyName",
+                  "header": "Display name (optional)",
+                  "width": "1fr",
+                  "element": {
+                    "name": "friendlyName",
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Notepad",
+                    "constraints": {
+                      "required": false
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "authentication",
+        "label": "Authentication",
+        "visible": "[or(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))))]",
+        "elements": [
+          {
+            "name": "authenticationType",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Authentication type",
+            "defaultValue": "EntraID",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "EntraID",
+                  "value": "EntraID"
+                },
+                {
+                  "label": "HybridJoin",
+                  "value": "HybridJoin"
+                }
+              ]
+            }
+          },
+          {
+            "name": "domainFqdn",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Domain FQDN",
+            "defaultValue": "",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+              "regex": "^(?=.{3,255}$)(?!-)(?:[A-Za-z0-9-]{1,63}\\.)+[A-Za-z]{2,63}$",
+              "validationMessage": "Use a valid domain FQDN such as cloudaigeek.com."
+            }
+          },
+          {
+            "name": "domainJoinUsername",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Domain join service account",
+            "defaultValue": "",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+              "regex": "^([^\\\\\\s]+\\\\[^\\\\\\s]+|[^@\\s]+@[^@\\s]+|[^\\s]+)$",
+              "validationMessage": "Use DOMAIN\\username or username@domain. Plain username is allowed and will be normalized automatically."
+            }
+          },
+          {
+            "name": "domainJoinPassword",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+              "password": "Domain join service account password",
+              "confirmPassword": "Confirm domain join service account password"
+            },
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": "[equals(steps('authentication').authenticationType, 'HybridJoin')]"
+            }
+          },
+          {
+            "name": "domainJoinOuPath",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Optional OU path",
+            "defaultValue": "",
+            "toolTip": "Example: OU=AVD,DC=contoso,DC=com",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": false,
+              "regex": "^$|^(?=.{1,1024}$)(?:OU=[^,=]+,)*(?:DC=[^,=]+,)*DC=[^,=]+$",
+              "validationMessage": "Use distinguished name format such as OU=AVD,DC=contoso,DC=com (or leave blank)."
+            }
+          },
+          {
+            "name": "entraUserObjectIds",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Legacy shared Entra object IDs",
+            "defaultValue": "",
+            "multiLine": true,
+            "toolTip": "Compatibility path. Optional shared User object IDs applied to all published app groups when EntraID authentication is selected.",
+            "visible": "[equals(steps('authentication').authenticationType, 'EntraID')]",
+            "constraints": {
+              "required": false,
+              "regex": "^\\s*$|^\\s*[0-9a-fA-F-]{36}(\\s*[,\\n]\\s*[0-9a-fA-F-]{36})*\\s*$",
+              "validationMessage": "Use one or more GUID object IDs separated by commas or new lines."
+            }
+          },
+          {
+            "name": "hybridUserObjectIds",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Legacy shared hybrid user object IDs",
+            "defaultValue": "",
+            "multiLine": true,
+            "toolTip": "Compatibility path. Optional shared User object IDs applied to all published app groups when HybridJoin is selected.",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": false,
+              "regex": "^\\s*$|^\\s*[0-9a-fA-F-]{36}(\\s*[,\\n]\\s*[0-9a-fA-F-]{36})*\\s*$",
+              "validationMessage": "Use one or more GUID object IDs separated by commas or new lines."
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "applicationResourceName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'avd-brownfield-action'), steps('instanceDetails').hostPoolName)]",
+      "location": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), contains(steps('brownfieldTarget').selectedHostPool, 'location')), steps('brownfieldTarget').selectedHostPool.location, location())]",
+      "deploymentPrefix": "[basics('deploymentPrefix')]",
+      "deploymentScenario": "[steps('deploymentScenario').deploymentScenario]",
+      "expandOperation": "[if(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), steps('expandOperation').expandOperation, '')]",
+      "day2Operation": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('day2Operation').day2Operation, '')]",
+      "networkMode": "[if(or(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment')), 'UseExistingVnet', if(equals(steps('networking').networkMode, 'Greenfield'), 'CreateNewVnet', 'UseExistingVnet'))]",
+      "existingVnetName": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), if(contains(steps('fslogixSettings').existingVnet, 'name'), steps('fslogixSettings').existingVnet.name, ''), if(or(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment')), if(contains(steps('networking').existingVnet, 'name'), steps('networking').existingVnet.name, ''), if(equals(steps('networking').networkMode, 'Brownfield'), if(contains(steps('networking').existingVnet, 'name'), steps('networking').existingVnet.name, ''), '')))]",
+      "existingVnetResourceGroupName": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), if(contains(steps('fslogixSettings').existingVnet, 'id'), last(take(split(steps('fslogixSettings').existingVnet.id, '/'), 5)), ''), if(or(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment')), if(contains(steps('networking').existingVnet, 'id'), last(take(split(steps('networking').existingVnet.id, '/'), 5)), ''), if(equals(steps('networking').networkMode, 'Brownfield'), if(contains(steps('networking').existingVnet, 'id'), last(take(split(steps('networking').existingVnet.id, '/'), 5)), ''), '')))]",
+      "newVnetName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newVnetName, ''))]",
+      "newVnetAddressPrefix": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newVnetAddressPrefix, ''))]",
+      "newSessionHostSubnetName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newSessionHostSubnetName, ''))]",
+      "newSessionHostSubnetPrefix": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newSessionHostSubnetPrefix, ''))]",
+      "newPrivateEndpointSubnetName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newPrivateEndpointSubnetName, ''))]",
+      "newPrivateEndpointSubnetPrefix": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newPrivateEndpointSubnetPrefix, ''))]",
+      "sessionHostSubnetName": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), or(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline'))), steps('networking').sessionHostSubnetName, if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newSessionHostSubnetName, steps('networking').sessionHostSubnetName)))]",
+      "privateEndpointSubnetName": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), steps('fslogixSettings').privateEndpointSubnetName, if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), steps('networking').newPrivateEndpointSubnetName, steps('networking').privateEndpointSubnetName)))]",
+      "hubVnetResourceId": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('networking').networkMode, 'Greenfield'), if(contains(steps('networking').hubVnet, 'id'), steps('networking').hubVnet.id, ''), ''))]",
+      "environment": "[basics('environment')]",
+      "sessionHostCount": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), 1, steps('instanceDetails').sessionHostCount)]",
+      "vmSize": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), 'Standard_D2ads_v5', steps('instanceDetails').vmSize)]",
+      "imageSource": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), 'Marketplace', steps('instanceDetails').imageSource)]",
+      "sessionHostSecurityType": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), 'Standard', steps('instanceDetails').sessionHostSecurityType)]",
+      "marketplaceImagePublisher": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).publisher]",
+      "marketplaceImageOffer": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).offer]",
+      "marketplaceImageSku": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).sku]",
+      "marketplaceImageVersion": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).version]",
+      "galleryImageSubscriptionId": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), not(empty(steps('instanceDetails').galleryPicker.id)))), last(take(split(steps('instanceDetails').galleryPicker.id, '/'), 3)), subscription().subscriptionId)]",
+      "galleryImageResourceGroupName": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), not(empty(steps('instanceDetails').galleryPicker.id)))), last(take(split(steps('instanceDetails').galleryPicker.id, '/'), 5)), '')]",
+      "galleryName": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), contains(steps('instanceDetails').galleryPicker, 'name')), steps('instanceDetails').galleryPicker.name, '')]",
+      "galleryImageDefinitionName": "[steps('instanceDetails').galleryImageDefinitionName]",
+      "galleryImageVersion": "[steps('instanceDetails').galleryImageVersion]",
+      "avdMode": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', if(equals(steps('instanceDetails').avdMode, 'LegacyPooledDesktop'), '', steps('instanceDetails').avdMode))]",
+      "hostPoolType": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Pooled'), if(equals(steps('instanceDetails').avdMode, 'PersonalDesktop'), steps('instanceDetails').hostPoolTypePersonal, steps('instanceDetails').hostPoolTypePooled))]",
+      "hostPoolName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), steps('instanceDetails').hostPoolName)]",
+      "existingHostPoolResourceGroupName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '')]",
+      "existingWorkspaceNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)), (workspace) => workspace.name))]",
+      "relatedApplicationGroupNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)), (appGroup) => appGroup.name))]",
+      "relatedDesktopApplicationGroupNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop'))), (appGroup) => appGroup.name))]",
+      "relatedRemoteAppApplicationGroupNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp'))), (appGroup) => appGroup.name))]",
+      "adminUsername": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('access').adminUsername)]",
+      "adminPassword": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('access').adminPassword)]",
+      "authenticationType": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), 'EntraID', steps('authentication').authenticationType)]",
+      "domainFqdn": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('authentication').domainFqdn)]",
+      "domainJoinUsername": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('authentication').domainJoinUsername)]",
+      "domainJoinPassword": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('authentication').domainJoinPassword)]",
+      "domainJoinOuPath": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('authentication').domainJoinOuPath)]",
+      "deployFSLogix": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), false, steps('storageMonitoring').deployFSLogix)]",
+      "storageAccountName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', steps('storageMonitoring').storageAccountName)]",
+      "deployFSLogixPrivateEndpoint": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), false, steps('storageMonitoring').deployFSLogixPrivateEndpoint)]",
+      "deployMonitoring": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), false, steps('storageMonitoring').deployMonitoring)]",
+      "brownfieldMonitoringWorkspaceMode": "[if(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+      "brownfieldMonitoringWorkspaceName": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')), steps('monitoringSettings').monitoringWorkspaceName, '')]",
+      "brownfieldMonitoringExistingWorkspaceResourceId": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting'), contains(steps('monitoringSettings').existingLogAnalyticsWorkspace, 'id')), steps('monitoringSettings').existingLogAnalyticsWorkspace.id, '')]",
+      "brownfieldMonitoringRetentionDays": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')), steps('monitoringSettings').monitoringRetentionDays, 30)]",
+      "scalingPlanName": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanName, '')]",
+      "scalingPlanFriendlyName": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanFriendlyName, '')]",
+      "scalingPlanDescription": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanDescription, '')]",
+      "scalingPlanTimeZone": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanTimeZone, 'UTC')]",
+      "scalingPlanExclusionTag": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanExclusionTag, '')]",
+      "weekdayRampUpStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekdayRampUpStartTime, '06:00')]",
+      "weekdayPeakStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekdayPeakStartTime, '09:00')]",
+      "weekdayRampDownStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekdayRampDownStartTime, '17:00')]",
+      "weekdayOffPeakStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekdayOffPeakStartTime, '20:00')]",
+      "weekendRampUpStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekendRampUpStartTime, '08:00')]",
+      "weekendPeakStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekendPeakStartTime, '10:00')]",
+      "weekendRampDownStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekendRampDownStartTime, '15:00')]",
+      "weekendOffPeakStartTime": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').weekendOffPeakStartTime, '18:00')]",
+      "rampUpLoadBalancingAlgorithm": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').rampUpLoadBalancingAlgorithm, 'BreadthFirst')]",
+      "peakLoadBalancingAlgorithm": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').peakLoadBalancingAlgorithm, 'BreadthFirst')]",
+      "rampDownLoadBalancingAlgorithm": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').rampDownLoadBalancingAlgorithm, 'DepthFirst')]",
+      "offPeakLoadBalancingAlgorithm": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').offPeakLoadBalancingAlgorithm, 'DepthFirst')]",
+      "minimumHostsPct": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').minimumHostsPct, 20)]",
+      "capacityThresholdPct": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').capacityThresholdPct, 75)]",
+      "rampDownWaitTimeMinutes": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').rampDownWaitTimeMinutes, 30)]",
+      "rampDownStopHostsWhen": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').rampDownStopHostsWhen, 'ZeroSessions')]",
+      "rampDownForceLogoffUsers": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').rampDownForceLogoffUsers, false)]",
+      "rampDownNotificationMessage": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').rampDownNotificationMessage, 'This session host will be stopped by the Azure Virtual Desktop scaling plan.')]",
+      "avdUserObjectIds": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), '', if(equals(steps('authentication').authenticationType, 'EntraID'), steps('authentication').entraUserObjectIds, steps('authentication').hybridUserObjectIds))]",
+      "desktopAccessAssignments": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), steps('access').desktopAssignments, if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), steps('accessAssignmentSettings').desktopAssignments, parse('[]')))]",
+      "remoteAppAccessAssignments": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), steps('access').remoteAppAssignments, if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), steps('accessAssignmentSettings').remoteAppAssignments, parse('[]')))]",
+      "brownfieldFslogixStorageAccountResourceId": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity'), contains(steps('fslogixSettings').fslogixStorageAccount, 'id')), steps('fslogixSettings').fslogixStorageAccount.id, '')]",
+      "brownfieldFslogixPrivateDnsZoneMode": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), steps('fslogixSettings').privateDnsZoneMode, 'CreateNew')]",
+      "remoteApps": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), parse('[]'), steps('access').remoteApps)]"
+    }
+  }
+}

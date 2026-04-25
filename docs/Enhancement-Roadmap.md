@@ -189,3 +189,9 @@ Exit criteria:
 - At least one pooled host pool can be onboarded to a scaling-plan flow without recreating session hosts.
 - At least one brownfield operational workflow is documented end to end.
 - Day-2 review screens clearly show scope of change and blast radius.
+
+Implementation status:
+- Shared scenario contract is implemented in the canonical managed-app wizard.
+- Dedicated operator entrypoint wrappers now exist for existing-environment and day-2 flows.
+- Managed-app packaging now emits `app.zip`, `app-existing.zip`, and `app-day2.zip`.
+- Remaining work: publish the managed application definitions, expose the final operator portal URLs, and run the validation matrix for each entrypoint.

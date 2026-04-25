@@ -25,12 +25,18 @@ When the user clicks it:
 Important:
 
 - The portal deploys the JSON template, not the Bicep source files directly.
-- The portal wizard is driven by `infra/createUiDefinition.validation.json` for the raw-template validation lane.
+- The portal wizard is driven by `infra/createUiDefinition.validation.v2.json` for the raw-template validation lane.
 - If `infra/azuredeploy.json` is not rebuilt after Bicep changes, the portal deploys stale logic.
 
 ---
 
 ## 2. What the user enters in the portal
+
+This document covers only the raw-template validation lane.
+
+Existing-environment management and day-2 operations are now split into dedicated managed-app entrypoints backed by:
+- `infra/managedapp/createUiDefinition.existing.json`
+- `infra/managedapp/createUiDefinition.day2.json`
 
 The portal form is generated from the template parameters.
 

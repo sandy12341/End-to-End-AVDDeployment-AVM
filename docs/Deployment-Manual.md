@@ -4,7 +4,12 @@
 > **Last Updated:** April 24, 2026  
 > **Repository:** `sandy12341/End-to-End-AVDDeployment-AVM`
 
-This repo now treats the Azure Managed Application as the supported public deployment path. The direct-template path documented in this manual remains important, but only as an engineering validation lane, parity check, and break-glass troubleshooting path.
+This repo now treats Azure Managed Application as the supported public deployment path. The direct-template path documented in this manual remains important, but only as an engineering validation lane, parity check, and break-glass troubleshooting path.
+
+The deployment model now separates three entrypoints:
+- Deploy New Environment
+- Manage Existing AVD Deployment
+- Launch Day-2 Operations
 
 ---
 
@@ -157,6 +162,37 @@ The raw-template validation lane currently uses the stable UI definition at `inf
 That validation wizard is intentionally scoped to the stable new-deployment flow plus greenfield or existing-VNet networking validation.
 
 Brownfield expansion and day-2 actions remain implemented in the shared Bicep solution and managed-app assets, but they are not the current raw-template portal entrypoint while the CreateUIDef surface is being stabilized.
+
+### 2.2.2 Managed Application Operator Entry Points
+
+The operator-facing managed application flow is now split into two dedicated entrypoints so users do not need to choose a scenario after launch.
+
+The exact package URI map and publication commands are documented in [docs/ManagedApp-Publishing.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/ManagedApp-Publishing.md).
+
+1. Manage Existing AVD Deployment
+- Managed application definition name: `avd-manage-existing-avm`
+- Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm`
+- Package artifact: `infra/managedapp/dist/app-existing.zip`
+- UI wrapper: `infra/managedapp/createUiDefinition.existing.json`
+- Intended actions: add session hosts, align monitoring posture, remediate VM or image baseline with replacement hosts
+
+2. Launch Day-2 Operations
+- Managed application definition name: `avd-day2-operations-avm`
+- Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm`
+- Package artifact: `infra/managedapp/dist/app-day2.zip`
+- UI wrapper: `infra/managedapp/createUiDefinition.day2.json`
+- Intended actions: configure scaling plans, align monitoring posture, update access assignments, reconcile FSLogix private connectivity, generate operational summary
+
+3. Deploy New Environment
+- Engineering validation button: raw-template lane in this repo
+- Managed application definition name: `avd-new-environment-avm`
+- Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm`
+- Package artifact: `infra/managedapp/dist/app-new.zip`
+
+The actual portal launch URLs for the managed application entrypoints are published only after the application definitions are deployed to the shared subscription.
+
+Current package release:
+- `https://github.com/sandy12341/End-to-End-AVDDeployment-AVM/releases/tag/managedapp-packages-20260425`
 
 ### 2.3 Option B: Azure CLI Deployment
 

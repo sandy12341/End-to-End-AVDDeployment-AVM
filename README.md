@@ -4,41 +4,85 @@ Parallel modernization lane for the Azure Virtual Desktop deployment. This repo 
 
 ## Deploy to Azure
 
-### One-Click Deployment with Brownfield/Greenfield Networking ⭐
+### Three Entry Points
 
-This repo now treats Azure Managed Application as the supported public deployment path. Direct raw-template deployment remains available only as an internal validation lane.
+This repo now separates greenfield validation from operator workflows. The raw-template button remains the stable engineering validation lane, while the brownfield and day-2 paths are carried by Azure Managed Application definitions.
+
+#### 1. Deploy New Environment
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.validation.v2.json)
 
-Current button target: internal validation lane. It now uses a stable validation UI that focuses on new deployment plus greenfield or brownfield networking choices while the richer managed-app wizard remains the long-term public path.
+Current target: stable raw-template validation lane.
+
+Published managed app definition:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm`
+
+Use this entrypoint for:
+- new environment deployment validation
+- create-new-network versus use-existing-network validation
+- parity testing and break-glass troubleshooting
+
+What you get:
+- multi-step portal wizard for a stable new-deployment validation flow
+- network mode selector for existing VNet or new spoke VNet
+- VNet and subnet dropdowns for validation scenarios
+- image source selection for Marketplace or Azure Compute Gallery
+
+#### 2. Manage Existing AVD Deployment
+
+Managed application definition: `avd-manage-existing-avm`
+
+Live definition ID:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm`
+
+Use this entrypoint for:
+- add session hosts to an existing host pool
+- align monitoring posture
+- remediate VM or image baseline with replacement hosts
+
+Publication status:
+- package artifact: `infra/managedapp/dist/app-existing.zip`
+- UI definition: `infra/managedapp/createUiDefinition.existing.json`
+- definition published in `rg-avd-managedapp-def-avm`
+
+#### 3. Launch Day-2 Operations
+
+Managed application definition: `avd-day2-operations-avm`
+
+Live definition ID:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm`
+
+Use this entrypoint for:
+- configure scaling plans
+- align monitoring posture
+- update access assignments
+- reconcile FSLogix private connectivity
+- generate operational summary
+
+Publication status:
+- package artifact: `infra/managedapp/dist/app-day2.zip`
+- UI definition: `infra/managedapp/createUiDefinition.day2.json`
+- definition published in `rg-avd-managedapp-def-avm`
 
 This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or package URI here.
-**What You Get:**
-- Multi-step portal wizard for a stable new-deployment validation flow
-- **Network mode selector** — use an existing VNet or create a new spoke VNet
-- **VNet and subnet dropdowns** — lists existing VNets and subnets in your subscription
-- **Hub VNet dropdown** — peers a new spoke VNet to an existing hub VNet  
-- **Image source selection** — marketplace or Azure Compute Gallery
-- Configure host pool, session hosts, FSLogix, monitoring
-- Auto-deploy to your subscription, your resources
-
-**Deployment Flow:**
-1. Click Deploy to Azure button
-2. Portal opens with the stable validation wizard
-3. Choose whether to deploy into a new spoke VNet or an existing VNet
-4. Select subscription and resource group
-5. Complete host pool, image, networking, FSLogix, monitoring, and access settings
-6. Review and create
 
 **Managed App Details for the AVM lane:**
-- Publish a separate managed application definition for this repo.
-- Use a separate package URI from the stable lane.
-- Recommended definition name: `avd-existing-network-avm`
+- Publish separate managed application definitions for new environment, existing deployment management, and day-2 operations.
+- Use separate package URIs from the stable lane.
+- Recommended definitions:
+- `avd-new-environment-avm`
+- `avd-manage-existing-avm`
+- `avd-day2-operations-avm`
 - Recommended validation resource group: `rg-avd-managedapp-def-avm`
 - Public customer entrypoint: managed application portal experience
 - Internal engineering entrypoint: direct template validation only
 
+Current package release:
+- `https://github.com/sandy12341/End-to-End-AVDDeployment-AVM/releases/tag/managedapp-packages-20260425`
+
 Operator walkthroughs for the brownfield and day-2 flows are documented in [docs/Deployment-Manual.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/Deployment-Manual.md).
+
+Exact package URI mapping and publish commands are documented in [docs/ManagedApp-Publishing.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/ManagedApp-Publishing.md).
 
 ## AVM Status
 
@@ -64,17 +108,19 @@ Operator walkthroughs for the brownfield and day-2 flows are documented in [docs
 
 ### Managed App Publishing and Operations
 
-Use CLI or PowerShell to publish and update the managed application definition for this repo. Customer deployments should use the managed application portal experience after the definition is published.
+Use CLI or PowerShell to publish and update the managed application definitions for this repo. Customer deployments should use the managed application portal experience after the definitions are published.
 
-The application definition resource ID is useful for inventory, promotion, and support workflows:
+The application definition resource IDs are useful for inventory, promotion, and support workflows:
 ```bash
-DEFINITION_ID="/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
+NEW_ENVIRONMENT_DEFINITION_ID="/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm"
+EXISTING_ENVIRONMENT_DEFINITION_ID="/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm"
+DAY2_DEFINITION_ID="/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm"
 ```
 
-You can query or verify the definition with:
+You can query or verify a definition with:
 
 ```powershell
-$definitionId = "/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-existing-network-avm"
+$definitionId = "/subscriptions/{definition-subscription}/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm"
 
 az resource show --ids "$definitionId"
 ```
@@ -101,9 +147,16 @@ The repository includes pre-built **Azure Managed Application** infrastructure (
 ### Managed App Files
 
 - **`mainTemplate.bicep`** - AVD infrastructure template (uses an existing VNet or creates a new spoke VNet with hub peering)
-- **`createUiDefinition.json`** - Portal wizard UI for new deployment, brownfield expansion, and day-2 operations
-- **`deployDefinition.bicep`** - Infrastructure-as-code for publishing the definition
-- **`dist/app.zip`** - Complete deployment package (hosted as GitHub release asset)
+- **`createUiDefinition.json`** - Canonical managed-app portal wizard UI
+- **`createUiDefinition.new.json`** - New-environment operator entrypoint wrapper
+- **`createUiDefinition.existing.json`** - Existing-environment operator entrypoint wrapper
+- **`createUiDefinition.day2.json`** - Day-2 operator entrypoint wrapper
+- **`deployDefinition.bicep`** - Single managed application definition template
+- **`deployDefinitions.bicep`** - Three-definition publish orchestrator
+- **`dist/app.zip`** - Generic managed-app package
+- **`dist/app-new.zip`** - New-environment managed-app package
+- **`dist/app-existing.zip`** - Existing-environment managed-app package
+- **`dist/app-day2.zip`** - Day-2 managed-app package
 
 ### How It Works
 
