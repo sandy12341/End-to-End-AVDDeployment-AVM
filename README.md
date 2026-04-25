@@ -8,15 +8,13 @@ Parallel modernization lane for the Azure Virtual Desktop deployment. This repo 
 
 This repo now treats Azure Managed Application as the supported public deployment path. Direct raw-template deployment remains available only as an internal validation lane.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2F702fcbd79db9271302b67e2f103e4685099ca6d7%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2F702fcbd79db9271302b67e2f103e4685099ca6d7%2Finfra%2FcreateUiDefinition.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.validation.json)
 
-Current button target: internal validation lane. The repo button now mirrors the same scenario-driven UI contract as the managed-app package, but it still launches the raw-template validation surface until a stable managed-application portal URL is published.
+Current button target: internal validation lane. It now uses a stable validation UI that focuses on new deployment plus greenfield or brownfield networking choices while the richer managed-app wizard remains the long-term public path.
 
 This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or package URI here.
 **What You Get:**
-- Multi-step portal wizard with a scenario selector
-- New deployment, brownfield expansion, and day-2 operations entrypoints
-- Pooled host pool scaling plan management in the portal flow
+- Multi-step portal wizard for a stable new-deployment validation flow
 - **Network mode selector** — use an existing VNet or create a new spoke VNet
 - **VNet and subnet dropdowns** — lists existing VNets and subnets in your subscription
 - **Hub VNet dropdown** — peers a new spoke VNet to an existing hub VNet  
@@ -26,10 +24,10 @@ This repo should use its own managed-application publishing path after the AVM l
 
 **Deployment Flow:**
 1. Click Deploy to Azure button
-2. Portal opens with the scenario-driven wizard
-3. Choose `NewDeployment`, `ExpandExistingDeployment`, or `Day2Operations`
+2. Portal opens with the stable validation wizard
+3. Choose whether to deploy into a new spoke VNet or an existing VNet
 4. Select subscription and resource group
-5. Complete only the steps required for the selected scenario
+5. Complete host pool, image, networking, FSLogix, monitoring, and access settings
 6. Review and create
 
 **Managed App Details for the AVM lane:**

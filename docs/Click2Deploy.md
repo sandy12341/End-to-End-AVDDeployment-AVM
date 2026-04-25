@@ -6,7 +6,7 @@ It reflects the current compiled ARM template in `infra/azuredeploy.json` and th
 
 The supported public customer path is the Azure Managed Application. The raw-template path documented here is retained only for engineering validation, parity testing, and break-glass troubleshooting.
 
-The internal validation button now uses the same scenario-driven portal contract as the managed-app package, so new deployment, brownfield expansion, and day-2 flows can all be exercised from this lane.
+The internal validation button now uses a separate stable UI definition for raw-template validation so the custom deployment blade stays reliable while the richer managed-app experience evolves independently.
 
 ---
 
@@ -25,7 +25,7 @@ When the user clicks it:
 Important:
 
 - The portal deploys the JSON template, not the Bicep source files directly.
-- The portal wizard is driven by `infra/createUiDefinition.json`, which is intentionally kept aligned with `infra/managedapp/createUiDefinition.json`.
+- The portal wizard is driven by `infra/createUiDefinition.validation.json` for the raw-template validation lane.
 - If `infra/azuredeploy.json` is not rebuilt after Bicep changes, the portal deploys stale logic.
 
 ---
