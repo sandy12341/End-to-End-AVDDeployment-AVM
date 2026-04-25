@@ -10,11 +10,13 @@ This repo now treats Azure Managed Application as the supported public deploymen
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.json)
 
-Current button target: internal validation lane. Replace this with the managed-application launch URL after the AVM managed application definition is published with a stable customer-facing portal entrypoint.
+Current button target: internal validation lane. The repo button now mirrors the same scenario-driven UI contract as the managed-app package, but it still launches the raw-template validation surface until a stable managed-application portal URL is published.
 
 This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or package URI here.
 **What You Get:**
-- Multi-step portal wizard (5 steps)
+- Multi-step portal wizard with a scenario selector
+- New deployment, brownfield expansion, and day-2 operations entrypoints
+- Pooled host pool scaling plan management in the portal flow
 - **Network mode selector** — use an existing VNet or create a new spoke VNet
 - **VNet and subnet dropdowns** — lists existing VNets and subnets in your subscription
 - **Hub VNet dropdown** — peers a new spoke VNet to an existing hub VNet  
@@ -24,14 +26,11 @@ This repo should use its own managed-application publishing path after the AVM l
 
 **Deployment Flow:**
 1. Click Deploy to Azure button
-2. Portal opens with 5-step wizard
-3. Select subscription and resource group
-4. Basics: Host pool name, instance count, VM size
-5. Networking: Choose existing VNet deployment or create a new spoke VNet and peer it to a hub
-6. AVD Config: Delivery mode (Desktop/RemoteApp/Both)  
-7. Storage & Monitoring: FSLogix and Log Analytics options
-8. Access: (Optional) User object IDs for RBAC assignment
-9. Review and create
+2. Portal opens with the scenario-driven wizard
+3. Choose `NewDeployment`, `ExpandExistingDeployment`, or `Day2Operations`
+4. Select subscription and resource group
+5. Complete only the steps required for the selected scenario
+6. Review and create
 
 **Managed App Details for the AVM lane:**
 - Publish a separate managed application definition for this repo.
@@ -40,6 +39,8 @@ This repo should use its own managed-application publishing path after the AVM l
 - Recommended validation resource group: `rg-avd-managedapp-def-avm`
 - Public customer entrypoint: managed application portal experience
 - Internal engineering entrypoint: direct template validation only
+
+Operator walkthroughs for the brownfield and day-2 flows are documented in [docs/Deployment-Manual.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/Deployment-Manual.md).
 
 ## AVM Status
 
@@ -102,7 +103,7 @@ The repository includes pre-built **Azure Managed Application** infrastructure (
 ### Managed App Files
 
 - **`mainTemplate.bicep`** - AVD infrastructure template (uses an existing VNet or creates a new spoke VNet with hub peering)
-- **`createUiDefinition.json`** - Portal wizard UI (5-step wizard with ArmApiControl dropdowns)
+- **`createUiDefinition.json`** - Portal wizard UI for new deployment, brownfield expansion, and day-2 operations
 - **`deployDefinition.bicep`** - Infrastructure-as-code for publishing the definition
 - **`dist/app.zip`** - Complete deployment package (hosted as GitHub release asset)
 

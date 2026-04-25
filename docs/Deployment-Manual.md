@@ -120,10 +120,12 @@ This direct-template path is retained for engineering validation. The supported 
 1. **Use the internal validation Deploy to Azure link** only when you need parity testing against the managed-app package:
 
    ```
-  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json
+  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.json
    ```
 
-2. **Fill in the required parameters** on the Azure Portal custom deployment form:
+2. **Use the scenario selector first** in the portal wizard. The validation lane now exposes the same `NewDeployment`, `ExpandExistingDeployment`, and `Day2Operations` contract as the managed-app package.
+
+3. **Fill in the required parameters** for the selected scenario on the Azure Portal custom deployment form:
 
    | Parameter | Example Value | Notes |
    |---|---|---|
@@ -147,6 +149,167 @@ This direct-template path is retained for engineering validation. The supported 
 3. **Click "Review + Create"**, then **"Create"**. The deployment takes approximately **5–7 minutes**.
 
 4. **No further manual steps** — session hosts will self-register with the host pool.
+
+### 2.2.1 Scenario-Driven Brownfield And Day-2 Workflows
+
+The validation-lane portal wizard and the managed-app package now expose the same scenario contract:
+
+- `NewDeployment`
+- `ExpandExistingDeployment`
+- `Day2Operations`
+
+Use the scenario selector first, then complete only the steps that apply to that operation.
+
+#### Expand Existing Deployment: Add Session Hosts
+
+Use this when an existing host pool needs additional session hosts without recreating the host pool, workspace, app groups, FSLogix storage, or scaling plan.
+
+Wizard flow:
+
+1. Select `ExpandExistingDeployment`.
+2. Select the target host pool in **Existing AVD target**.
+3. Choose `AddSessionHosts` in **Expansion action**.
+4. Provide VM size, image source, subnet, admin credentials, and authentication settings.
+5. Review the brownfield summary and confirm that only new session hosts will be created.
+
+Expected result:
+
+- New VMs are created in the selected host pool resource group.
+- The new VMs register to the existing host pool.
+- Existing control-plane resources are reused.
+
+Blast radius:
+
+- Creates new session-host resources only.
+- Does not replace or remove existing hosts.
+
+#### Expand Existing Deployment: Remediate VM/Image Baseline
+
+Use this when you need to stage replacement hosts with a new VM size or image baseline while keeping the existing host pool online.
+
+Wizard flow:
+
+1. Select `ExpandExistingDeployment`.
+2. Select the target host pool.
+3. Choose `RemediateVmImageBaseline`.
+4. Provide the updated VM/image settings for the replacement hosts.
+5. Review the summary and verify that existing hosts are not removed automatically.
+
+Expected result:
+
+- New replacement-style session hosts are created and registered.
+- The operator can drain and remove older hosts separately after validation.
+
+Blast radius:
+
+- Adds new hosts only.
+- No in-place mutation of existing VMs.
+
+#### Expand Existing Deployment Or Day-2: Align Monitoring Posture
+
+Use this when diagnostics on an existing host pool, related workspaces, and related app groups need to be aligned to a Log Analytics workspace.
+
+Wizard flow:
+
+1. Select either `ExpandExistingDeployment` with `AlignMonitoringPosture`, or `Day2Operations` with `AlignMonitoringPosture`.
+2. Select the target host pool.
+3. Choose whether to create a new Log Analytics workspace or reuse an existing one.
+4. Review the detected related workspaces and application groups.
+5. Confirm the review page states that session hosts are not recreated.
+
+Expected result:
+
+- Control-plane diagnostic settings are created or updated on the existing host pool, related workspaces, and related application groups.
+- Monitoring targets the selected or newly created Log Analytics workspace.
+
+Blast radius:
+
+- Updates monitoring resources and diagnostic settings only.
+- No session host deployment.
+
+#### Day-2 Operations: Configure Scaling Plan
+
+Use this for pooled host pools that need a new scaling plan or an update to an existing plan attachment.
+
+Wizard flow:
+
+1. Select `Day2Operations`.
+2. Select a pooled host pool in **Existing AVD target**.
+3. Choose `ConfigureScalingPlan`.
+4. Provide the scaling plan name, friendly name, time zone, weekday/weekend schedule, balancing algorithms, thresholds, and ramp-down behavior.
+5. Review whether the action will create a new scaling plan attachment or update an existing one.
+
+Expected result:
+
+- A scaling plan is created or updated in the host pool resource group.
+- The selected pooled host pool is attached to that scaling plan.
+
+Blast radius:
+
+- Updates scaling-plan resources only.
+- Does not recreate session hosts.
+
+#### Day-2 Operations: Update Access Assignments
+
+Use this to assign AVD user access across discovered desktop and RemoteApp application groups for an existing host pool.
+
+Wizard flow:
+
+1. Select `Day2Operations`.
+2. Select the target host pool.
+3. Choose `UpdateAccessAssignments`.
+4. Enter desktop and RemoteApp assignment rows with `principalId` and `principalType`.
+5. Review the count of discovered application groups before deployment.
+
+Expected result:
+
+- Desktop Virtualization User role assignments are applied across the discovered application groups.
+
+Blast radius:
+
+- Updates RBAC on existing application groups only.
+- No host pool or session-host recreation.
+
+#### Day-2 Operations: Reconcile FSLogix Private Connectivity
+
+Use this when the existing FSLogix storage account needs a private endpoint and optional private DNS zone wiring.
+
+Wizard flow:
+
+1. Select `Day2Operations`.
+2. Select the target host pool if applicable for the overall deployment context.
+3. Choose `ReconcileFsLogixPrivateConnectivity`.
+4. Select the FSLogix storage account, VNet, subnet, and private DNS mode.
+5. Review the detected public network access and existing private endpoint connections.
+
+Expected result:
+
+- A private endpoint is created for the file service on the selected storage account.
+- The private DNS zone is created and linked, or skipped, based on the selected mode.
+
+Blast radius:
+
+- Updates storage networking and private connectivity only.
+- No session host recreation.
+
+#### Day-2 Operations: Generate Operational Summary
+
+Use this as a no-change review path when you want the wizard to inspect the existing host pool posture without making infrastructure changes.
+
+Wizard flow:
+
+1. Select `Day2Operations`.
+2. Select the target host pool.
+3. Choose `GenerateOperationalSummary`.
+4. Review the discovered host pool type, related application groups, related workspaces, diagnostic posture, and scaling-plan posture.
+
+Expected result:
+
+- The deployment produces the brownfield summary outputs without provisioning a new operating slice.
+
+Blast radius:
+
+- No intended infrastructure mutation beyond ARM evaluation of the selected path.
 
 ### 2.3 Option B: Azure CLI Deployment
 

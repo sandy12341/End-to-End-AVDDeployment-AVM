@@ -1699,7 +1699,6 @@
       }
     ],
     "outputs": {
-      "applicationResourceName": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), if(contains(steps('day2Operation').existingHostPool, 'name'), steps('day2Operation').existingHostPool.name, 'avd-day2-scaling'), steps('instanceDetails').hostPoolName)]",
       "applicationResourceName": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'avd-brownfield-action'), steps('instanceDetails').hostPoolName)]",
       "location": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), contains(steps('brownfieldTarget').selectedHostPool, 'location')), steps('brownfieldTarget').selectedHostPool.location, location())]",
       "deploymentPrefix": "[basics('deploymentPrefix')]",
