@@ -120,7 +120,7 @@ This direct-template path is retained for engineering validation. The supported 
 1. **Use the internal validation Deploy to Azure link** only when you need parity testing against the managed-app package:
 
    ```
-  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.validation.json
+  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.validation.v2.json
    ```
 
 2. **Use the stable validation wizard** for new deployments and networking validation. The raw-template lane currently focuses on the stable new-deployment flow while the managed-app publishing path continues to carry the richer brownfield and day-2 experience.
@@ -152,7 +152,7 @@ This direct-template path is retained for engineering validation. The supported 
 
 ### 2.2.1 Brownfield And Day-2 Status
 
-The raw-template validation lane currently uses the stable UI definition at `infra/createUiDefinition.validation.json`.
+The raw-template validation lane currently uses the stable UI definition at `infra/createUiDefinition.validation.v2.json`.
 
 That validation wizard is intentionally scoped to the stable new-deployment flow plus greenfield or existing-VNet networking validation.
 
