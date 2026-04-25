@@ -7,9 +7,21 @@ param location string = resourceGroup().location
 @maxLength(6)
 param deploymentPrefix string = 'avd1'
 
+@description('Deployment scenario selected by the entrypoint. NewDeployment preserves the current create flow while brownfield operation paths are introduced incrementally.')
+@allowed(['NewDeployment', 'ExpandExistingDeployment', 'Day2Operations'])
+param deploymentScenario string = 'NewDeployment'
+
 @description('Environment name')
 @allowed(['dev', 'test', 'prod'])
 param environment string = 'dev'
+
+@description('Selected brownfield expansion action.')
+@allowed(['', 'AddSessionHosts', 'AlignMonitoringPosture', 'RemediateVmImageBaseline'])
+param expandOperation string = ''
+
+@description('Selected brownfield day-2 action.')
+@allowed(['', 'ConfigureScalingPlan', 'AlignMonitoringPosture', 'UpdateAccessAssignments', 'ReconcileFsLogixPrivateConnectivity', 'GenerateOperationalSummary'])
+param day2Operation string = ''
 
 @description('Number of session host VMs')
 @minValue(1)
@@ -90,9 +102,8 @@ param adminPassword string
 param deployFSLogix bool = true
 
 @description('Storage account name for FSLogix profiles (must be globally unique, 3-24 chars, lowercase/numbers only)')
-@minLength(3)
 @maxLength(24)
-param storageAccountName string
+param storageAccountName string = ''
 
 @description('Deploy monitoring (Log Analytics)')
 param deployMonitoring bool = true
@@ -138,7 +149,123 @@ param newPrivateEndpointSubnetPrefix string = '10.20.2.0/24'
 param hubVnetResourceId string = ''
 
 @description('Host pool name')
-param hostPoolName string
+param hostPoolName string = ''
+
+@description('Resource group name that contains the existing host pool targeted by a brownfield action.')
+param existingHostPoolResourceGroupName string = ''
+
+@description('Existing workspaces related to the selected host pool.')
+param existingWorkspaceNames array = []
+
+@description('Existing application groups related to the selected host pool.')
+param relatedApplicationGroupNames array = []
+
+@description('Existing desktop application groups related to the selected host pool.')
+param relatedDesktopApplicationGroupNames array = []
+
+@description('Existing RemoteApp application groups related to the selected host pool.')
+param relatedRemoteAppApplicationGroupNames array = []
+
+@description('Monitoring workspace mode for brownfield monitoring alignment.')
+@allowed(['CreateNew', 'UseExisting'])
+param brownfieldMonitoringWorkspaceMode string = 'CreateNew'
+
+@description('Name of the Log Analytics workspace to create for brownfield monitoring alignment.')
+param brownfieldMonitoringWorkspaceName string = ''
+
+@description('Existing Log Analytics workspace resource ID to use for brownfield monitoring alignment.')
+param brownfieldMonitoringExistingWorkspaceResourceId string = ''
+
+@description('Retention in days for a newly created Log Analytics workspace used by brownfield monitoring alignment.')
+@minValue(30)
+@maxValue(730)
+param brownfieldMonitoringRetentionDays int = 30
+
+@description('Resource ID of the existing FSLogix storage account targeted by brownfield reconciliation.')
+param brownfieldFslogixStorageAccountResourceId string = ''
+
+@description('DNS zone management mode for brownfield FSLogix reconciliation.')
+@allowed(['CreateNew', 'Skip'])
+param brownfieldFslogixPrivateDnsZoneMode string = 'CreateNew'
+
+@description('Scaling plan name for brownfield scaling plan management.')
+param scalingPlanName string = ''
+
+@description('Friendly name for the brownfield scaling plan.')
+param scalingPlanFriendlyName string = ''
+
+@description('Description for the brownfield scaling plan.')
+param scalingPlanDescription string = ''
+
+@description('Time zone for brownfield scaling plan schedules.')
+param scalingPlanTimeZone string = 'UTC'
+
+@description('Optional exclusion tag for the brownfield scaling plan.')
+param scalingPlanExclusionTag string = ''
+
+@description('Weekday ramp-up start time in HH:mm format.')
+param weekdayRampUpStartTime string = '06:00'
+
+@description('Weekday peak start time in HH:mm format.')
+param weekdayPeakStartTime string = '09:00'
+
+@description('Weekday ramp-down start time in HH:mm format.')
+param weekdayRampDownStartTime string = '17:00'
+
+@description('Weekday off-peak start time in HH:mm format.')
+param weekdayOffPeakStartTime string = '20:00'
+
+@description('Weekend ramp-up start time in HH:mm format.')
+param weekendRampUpStartTime string = '08:00'
+
+@description('Weekend peak start time in HH:mm format.')
+param weekendPeakStartTime string = '10:00'
+
+@description('Weekend ramp-down start time in HH:mm format.')
+param weekendRampDownStartTime string = '15:00'
+
+@description('Weekend off-peak start time in HH:mm format.')
+param weekendOffPeakStartTime string = '18:00'
+
+@description('Load-balancing algorithm used during ramp-up.')
+@allowed(['BreadthFirst', 'DepthFirst'])
+param rampUpLoadBalancingAlgorithm string = 'BreadthFirst'
+
+@description('Load-balancing algorithm used during peak.')
+@allowed(['BreadthFirst', 'DepthFirst'])
+param peakLoadBalancingAlgorithm string = 'BreadthFirst'
+
+@description('Load-balancing algorithm used during ramp-down.')
+@allowed(['BreadthFirst', 'DepthFirst'])
+param rampDownLoadBalancingAlgorithm string = 'DepthFirst'
+
+@description('Load-balancing algorithm used during off-peak.')
+@allowed(['BreadthFirst', 'DepthFirst'])
+param offPeakLoadBalancingAlgorithm string = 'DepthFirst'
+
+@description('Minimum percentage of session hosts to keep running during ramp-up and off-peak periods.')
+@minValue(0)
+@maxValue(100)
+param minimumHostsPct int = 20
+
+@description('Capacity threshold percentage that triggers ramp-up and ramp-down transitions.')
+@minValue(1)
+@maxValue(100)
+param capacityThresholdPct int = 75
+
+@description('How long to wait before stopping hosts during ramp-down.')
+@minValue(0)
+param rampDownWaitTimeMinutes int = 30
+
+@description('When a host can be stopped during ramp-down.')
+@allowed(['ZeroSessions', 'ZeroActiveSessions'])
+param rampDownStopHostsWhen string = 'ZeroSessions'
+
+@description('Whether users should be forced off during ramp-down.')
+param rampDownForceLogoffUsers bool = false
+
+@description('Notification shown to users before forced logoff during ramp-down.')
+param rampDownNotificationMessage string = 'This session host will be stopped by the Azure Virtual Desktop scaling plan.'
 
 @description('Comma or newline separated Entra Object IDs to grant AVD access. Leave empty to skip role assignments.')
 param avdUserObjectIds string = ''
@@ -156,11 +283,23 @@ param remoteApps array = []
 param deploymentInstanceSeed string = utcNow('u')
 
 var namingPrefix = '${deploymentPrefix}-${environment}'
+var isExpandAddSessionHosts = deploymentScenario == 'ExpandExistingDeployment' && expandOperation == 'AddSessionHosts'
+var isExpandAlignMonitoring = deploymentScenario == 'ExpandExistingDeployment' && expandOperation == 'AlignMonitoringPosture'
+var isExpandVmBaselineRemediation = deploymentScenario == 'ExpandExistingDeployment' && expandOperation == 'RemediateVmImageBaseline'
+var isDay2ScalingPlan = deploymentScenario == 'Day2Operations' && day2Operation == 'ConfigureScalingPlan'
+var isDay2AlignMonitoring = deploymentScenario == 'Day2Operations' && day2Operation == 'AlignMonitoringPosture'
+var isDay2UpdateAccessAssignments = deploymentScenario == 'Day2Operations' && day2Operation == 'UpdateAccessAssignments'
+var isDay2ReconcileFsLogixPrivateConnectivity = deploymentScenario == 'Day2Operations' && day2Operation == 'ReconcileFsLogixPrivateConnectivity'
+var isDay2GenerateOperationalSummary = deploymentScenario == 'Day2Operations' && day2Operation == 'GenerateOperationalSummary'
+var isBrownfieldMonitoringAlignment = isExpandAlignMonitoring || isDay2AlignMonitoring
+var isBrownfieldSessionHostReplacement = isExpandAddSessionHosts || isExpandVmBaselineRemediation
+var isNewDeployment = deploymentScenario == 'NewDeployment'
 var effectiveAvdMode = empty(avdMode) ? (hostPoolType == 'Personal' ? 'PersonalDesktop' : 'PooledDesktop') : avdMode
 var effectiveHostPoolType = effectiveAvdMode == 'PersonalDesktop' ? 'Personal' : 'Pooled'
 var publishDesktop = effectiveAvdMode == 'PersonalDesktop' || effectiveAvdMode == 'PooledDesktop' || effectiveAvdMode == 'PooledDesktopAndRemoteApp'
 var publishRemoteApps = effectiveAvdMode == 'PooledRemoteApp' || effectiveAvdMode == 'PooledDesktopAndRemoteApp'
 var effectiveExistingVnetResourceGroupName = empty(existingVnetResourceGroupName) ? resourceGroup().name : existingVnetResourceGroupName
+var effectiveExistingHostPoolResourceGroupName = empty(existingHostPoolResourceGroupName) ? resourceGroup().name : existingHostPoolResourceGroupName
 var desktopAppGroupName = 'dag-avd-${namingPrefix}'
 var remoteAppGroupName = 'rag-avd-${namingPrefix}'
 var existingVnetId = resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks', existingVnetName)
@@ -191,7 +330,7 @@ var tags = {
   DeployedBy: 'Bicep'
 }
 
-module network '../modules/network.bicep' = if (networkMode == 'CreateNewVnet') {
+module network '../modules/network.bicep' = if (isNewDeployment && networkMode == 'CreateNewVnet') {
   name: 'deploy-network'
   params: {
     location: location
@@ -211,11 +350,11 @@ var vnetId = networkMode == 'CreateNewVnet' ? network!.outputs.vnetId : existing
 var sessionHostSubnetId = networkMode == 'CreateNewVnet'
   ? network!.outputs.sessionHostSubnetId
   : resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', existingVnetName, sessionHostSubnetName)
-var privateEndpointSubnetId = networkMode == 'CreateNewVnet'
+var privateEndpointSubnetId = isNewDeployment ? (networkMode == 'CreateNewVnet'
   ? network!.outputs.privateEndpointSubnetId
-  : resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', existingVnetName, privateEndpointSubnetName)
+  : resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', existingVnetName, privateEndpointSubnetName)) : 'N/A'
 
-module hostPool '../modules/hostpool.bicep' = {
+module hostPool '../modules/hostpool.bicep' = if (isNewDeployment) {
   name: 'deploy-hostpool'
   dependsOn: [
     network
@@ -235,7 +374,7 @@ module hostPool '../modules/hostpool.bicep' = {
   }
 }
 
-module sessionHosts '../modules/sessionhosts.bicep' = {
+module sessionHosts '../modules/sessionhosts.bicep' = if (isNewDeployment) {
   name: 'deploy-sessionhosts'
   params: {
     location: location
@@ -244,7 +383,7 @@ module sessionHosts '../modules/sessionhosts.bicep' = {
     sessionHostSecurityType: effectiveSessionHostSecurityType
     imageReference: sessionHostImageReference
     subnetId: sessionHostSubnetId
-    hostPoolName: hostPool.outputs.hostPoolName
+    hostPoolName: isExpandAddSessionHosts ? hostPoolName : hostPool!.outputs.hostPoolName
     adminUsername: adminUsername
     adminPassword: adminPassword
     authenticationType: authenticationType
@@ -260,7 +399,44 @@ module sessionHosts '../modules/sessionhosts.bicep' = {
   }
 }
 
-module fslogix '../modules/fslogix.bicep' = if (deployFSLogix) {
+module expandedSessionHosts '../modules/sessionhosts.bicep' = if (isBrownfieldSessionHostReplacement) {
+  name: 'expand-sessionhosts'
+  scope: resourceGroup(effectiveExistingHostPoolResourceGroupName)
+  params: {
+    location: location
+    sessionHostCount: sessionHostCount
+    vmSize: vmSize
+    sessionHostSecurityType: effectiveSessionHostSecurityType
+    imageReference: sessionHostImageReference
+    subnetId: sessionHostSubnetId
+    hostPoolName: hostPoolName
+    adminUsername: adminUsername
+    adminPassword: adminPassword
+    authenticationType: authenticationType
+    domainFqdn: domainFqdn
+    domainJoinUsername: domainJoinUsername
+    domainJoinPassword: domainJoinPassword
+    domainJoinOuPath: domainJoinOuPath
+    enableMonitoring: false
+    dataCollectionRuleId: ''
+    deploymentInstanceSeed: deploymentInstanceSeed
+    vmNamePrefix: 'vm-avd-${namingPrefix}'
+    tags: tags
+  }
+}
+
+module brownfieldAccessAssignments '../modules/brownfieldAccessAssignments.bicep' = if (isDay2UpdateAccessAssignments) {
+  name: 'update-brownfield-access'
+  scope: resourceGroup(effectiveExistingHostPoolResourceGroupName)
+  params: {
+    desktopApplicationGroupNames: relatedDesktopApplicationGroupNames
+    remoteAppApplicationGroupNames: relatedRemoteAppApplicationGroupNames
+    desktopAccessAssignments: desktopAccessAssignments
+    remoteAppAccessAssignments: remoteAppAccessAssignments
+  }
+}
+
+module fslogix '../modules/fslogix.bicep' = if (isNewDeployment && deployFSLogix) {
   name: 'deploy-fslogix'
   params: {
     location: location
@@ -271,7 +447,7 @@ module fslogix '../modules/fslogix.bicep' = if (deployFSLogix) {
   }
 }
 
-module fslogixDns '../modules/fslogixPrivateDns.bicep' = if (deployFSLogix && deployFSLogixPrivateEndpoint) {
+module fslogixDns '../modules/fslogixPrivateDns.bicep' = if (isNewDeployment && deployFSLogix && deployFSLogixPrivateEndpoint) {
   name: 'deploy-fslogix-pe'
   params: {
     location: location
@@ -282,7 +458,7 @@ module fslogixDns '../modules/fslogixPrivateDns.bicep' = if (deployFSLogix && de
   }
 }
 
-module monitoring '../modules/monitoring.bicep' = if (deployMonitoring) {
+module monitoring '../modules/monitoring.bicep' = if (isNewDeployment && deployMonitoring) {
   name: 'deploy-monitoring'
   dependsOn: [
     network
@@ -295,28 +471,94 @@ module monitoring '../modules/monitoring.bicep' = if (deployMonitoring) {
   }
 }
 
-resource monitoredHostPool 'Microsoft.DesktopVirtualization/hostPools@2025-10-10' existing = if (deployMonitoring) {
+module scalingPlan '../modules/scalingPlan.bicep' = if (isDay2ScalingPlan) {
+  name: 'configure-scaling-plan'
+  scope: resourceGroup(effectiveExistingHostPoolResourceGroupName)
+  params: {
+    location: location
+    hostPoolName: hostPoolName
+    hostPoolResourceGroupName: effectiveExistingHostPoolResourceGroupName
+    scalingPlanName: scalingPlanName
+    scalingPlanFriendlyName: scalingPlanFriendlyName
+    scalingPlanDescription: scalingPlanDescription
+    scalingPlanTimeZone: scalingPlanTimeZone
+    scalingPlanExclusionTag: scalingPlanExclusionTag
+    weekdayRampUpStartTime: weekdayRampUpStartTime
+    weekdayPeakStartTime: weekdayPeakStartTime
+    weekdayRampDownStartTime: weekdayRampDownStartTime
+    weekdayOffPeakStartTime: weekdayOffPeakStartTime
+    weekendRampUpStartTime: weekendRampUpStartTime
+    weekendPeakStartTime: weekendPeakStartTime
+    weekendRampDownStartTime: weekendRampDownStartTime
+    weekendOffPeakStartTime: weekendOffPeakStartTime
+    rampUpLoadBalancingAlgorithm: rampUpLoadBalancingAlgorithm
+    peakLoadBalancingAlgorithm: peakLoadBalancingAlgorithm
+    rampDownLoadBalancingAlgorithm: rampDownLoadBalancingAlgorithm
+    offPeakLoadBalancingAlgorithm: offPeakLoadBalancingAlgorithm
+    minimumHostsPct: minimumHostsPct
+    capacityThresholdPct: capacityThresholdPct
+    rampDownWaitTimeMinutes: rampDownWaitTimeMinutes
+    rampDownStopHostsWhen: rampDownStopHostsWhen
+    rampDownForceLogoffUsers: rampDownForceLogoffUsers
+    rampDownNotificationMessage: rampDownNotificationMessage
+    tags: tags
+  }
+}
+
+module brownfieldMonitoring '../modules/brownfieldMonitoring.bicep' = if (isBrownfieldMonitoringAlignment) {
+  name: 'align-brownfield-monitoring'
+  scope: resourceGroup(effectiveExistingHostPoolResourceGroupName)
+  params: {
+    location: location
+    hostPoolName: hostPoolName
+    workspaceNames: existingWorkspaceNames
+    applicationGroupNames: relatedApplicationGroupNames
+    createWorkspace: brownfieldMonitoringWorkspaceMode == 'CreateNew'
+    workspaceName: brownfieldMonitoringWorkspaceName
+    existingWorkspaceResourceId: brownfieldMonitoringExistingWorkspaceResourceId
+    retentionDays: brownfieldMonitoringRetentionDays
+    enableHostPoolDiagnostics: true
+    enableWorkspaceDiagnostics: true
+    enableApplicationGroupDiagnostics: true
+    tags: tags
+  }
+}
+
+module brownfieldFslogixPrivateDns '../modules/fslogixPrivateDns.bicep' = if (isDay2ReconcileFsLogixPrivateConnectivity) {
+  name: 'reconcile-brownfield-fslogix'
+  scope: resourceGroup(last(take(split(brownfieldFslogixStorageAccountResourceId, '/'), 5)))
+  params: {
+    location: location
+    storageAccountId: brownfieldFslogixStorageAccountResourceId
+    privateEndpointSubnetId: resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', existingVnetName, privateEndpointSubnetName)
+    vnetId: existingVnetId
+    privateDnsZoneMode: brownfieldFslogixPrivateDnsZoneMode
+    tags: tags
+  }
+}
+
+resource monitoredHostPool 'Microsoft.DesktopVirtualization/hostPools@2025-10-10' existing = if (isNewDeployment && deployMonitoring) {
   name: hostPoolName
 }
 
-resource monitoredWorkspace 'Microsoft.DesktopVirtualization/workspaces@2025-10-10' existing = if (deployMonitoring) {
+resource monitoredWorkspace 'Microsoft.DesktopVirtualization/workspaces@2025-10-10' existing = if (isNewDeployment && deployMonitoring) {
   name: 'ws-avd-${namingPrefix}'
 }
 
-resource monitoredFslogixStorage 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (deployFSLogix && deployMonitoring) {
+resource monitoredFslogixStorage 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (isNewDeployment && deployFSLogix && deployMonitoring) {
   name: storageAccountName
 }
 
-resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' existing = if (publishDesktop) {
+resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' existing = if (isNewDeployment && publishDesktop) {
   name: desktopAppGroupName
 }
 
-resource remoteAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' existing = if (publishRemoteApps) {
+resource remoteAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' existing = if (isNewDeployment && publishRemoteApps) {
   name: remoteAppGroupName
 }
 
 #disable-next-line use-recent-api-versions // The linter currently suggests 2016-09-01 for diagnosticSettings, which is older than the working API surface used here.
-resource hostPoolDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring) {
+resource hostPoolDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (isNewDeployment && deployMonitoring) {
   name: 'diag-hostpool-to-law'
   scope: monitoredHostPool
   properties: {
@@ -338,7 +580,7 @@ resource hostPoolDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
 }
 
 #disable-next-line use-recent-api-versions // The linter currently suggests 2016-09-01 for diagnosticSettings, which is older than the working API surface used here.
-resource avdWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring) {
+resource avdWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (isNewDeployment && deployMonitoring) {
   name: 'diag-workspace-to-law'
   scope: monitoredWorkspace
   properties: {
@@ -360,7 +602,7 @@ resource avdWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-
 }
 
 #disable-next-line use-recent-api-versions // The linter currently suggests 2016-09-01 for diagnosticSettings, which is older than the working API surface used here.
-resource desktopAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring && publishDesktop) {
+resource desktopAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (isNewDeployment && deployMonitoring && publishDesktop) {
   name: 'diag-desktop-appgroup-to-law'
   scope: desktopAppGroup
   properties: {
@@ -382,7 +624,7 @@ resource desktopAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-
 }
 
 #disable-next-line use-recent-api-versions // The linter currently suggests 2016-09-01 for diagnosticSettings, which is older than the working API surface used here.
-resource remoteAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployMonitoring && publishRemoteApps) {
+resource remoteAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (isNewDeployment && deployMonitoring && publishRemoteApps) {
   name: 'diag-remoteapp-appgroup-to-law'
   scope: remoteAppGroup
   properties: {
@@ -404,7 +646,7 @@ resource remoteAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-0
 }
 
 #disable-next-line use-recent-api-versions // The linter currently suggests 2016-09-01 for diagnosticSettings, which is older than the working API surface used here.
-resource fslogixStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployFSLogix && deployMonitoring) {
+resource fslogixStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (isNewDeployment && deployFSLogix && deployMonitoring) {
   name: 'diag-fslogix-storage-to-law'
   scope: monitoredFslogixStorage
   properties: {
@@ -425,7 +667,7 @@ resource fslogixStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-0
   }
 }
 
-resource desktopAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in desktopEffectiveAssignments: if (publishDesktop && !empty(string(assignment.principalId))) {
+resource desktopAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in desktopEffectiveAssignments: if (isNewDeployment && publishDesktop && !empty(string(assignment.principalId))) {
   name: guid(resourceGroup().id, desktopAppGroupName, string(assignment.principalType), string(assignment.principalId), '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63')
   scope: desktopAppGroup
   dependsOn: [
@@ -438,7 +680,7 @@ resource desktopAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01'
   }
 }]
 
-resource remoteAppAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in remoteAppEffectiveAssignments: if (publishRemoteApps && !empty(string(assignment.principalId))) {
+resource remoteAppAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in remoteAppEffectiveAssignments: if (isNewDeployment && publishRemoteApps && !empty(string(assignment.principalId))) {
   name: guid(resourceGroup().id, remoteAppGroupName, string(assignment.principalType), string(assignment.principalId), '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63')
   scope: remoteAppGroup
   dependsOn: [
@@ -451,7 +693,7 @@ resource remoteAppAvdUserRole 'Microsoft.Authorization/roleAssignments@2022-04-0
   }
 }]
 
-resource vmLoginRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in vmLoginEffectiveAssignments: if (authenticationType == 'EntraID' && !empty(string(assignment.principalId)) && string(assignment.principalType) != 'ServicePrincipal') {
+resource vmLoginRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in vmLoginEffectiveAssignments: if (isNewDeployment && authenticationType == 'EntraID' && !empty(string(assignment.principalId)) && string(assignment.principalType) != 'ServicePrincipal') {
   name: guid(resourceGroup().id, string(assignment.principalType), string(assignment.principalId), 'fb879df8-f326-4884-b1cf-06f3ad86be52')
   properties: {
     principalId: string(assignment.principalId)
@@ -460,18 +702,38 @@ resource vmLoginRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for
   }
 }]
 
-output hostPoolName string = hostPool.outputs.hostPoolName
-output workspaceId string = hostPool.outputs.workspaceId
-output desktopAppGroupId string = hostPool.outputs.desktopAppGroupId
-output remoteAppGroupId string = hostPool.outputs.remoteAppGroupId
-output publishedAppGroupIds array = hostPool.outputs.publishedAppGroupIds
-output vnetId string = vnetId
-output privateEndpointSubnetId string = privateEndpointSubnetId
-output sessionHostVmNames array = sessionHosts.outputs.vmNames
-output fslogixStorageAccount string = deployFSLogix ? fslogix!.outputs.storageAccountName : 'N/A'
-output fslogixPrivateEndpointId string = (deployFSLogix && deployFSLogixPrivateEndpoint) ? fslogixDns!.outputs.privateEndpointId : 'N/A'
-output logAnalyticsWorkspace string = deployMonitoring ? monitoring!.outputs.workspaceName : 'N/A'
-output logAnalyticsWorkspaceId string = deployMonitoring ? monitoring!.outputs.workspaceId : 'N/A'
-output monitoringDataCollectionRuleId string = deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : 'N/A'
+output hostPoolName string = isNewDeployment ? hostPool!.outputs.hostPoolName : hostPoolName
+output workspaceId string = isNewDeployment ? hostPool!.outputs.workspaceId : 'N/A'
+output desktopAppGroupId string = isNewDeployment ? hostPool!.outputs.desktopAppGroupId : 'N/A'
+output remoteAppGroupId string = isNewDeployment ? hostPool!.outputs.remoteAppGroupId : 'N/A'
+output publishedAppGroupIds array = isNewDeployment ? hostPool!.outputs.publishedAppGroupIds : []
+output vnetId string = (isNewDeployment && networkMode == 'CreateNewVnet') ? vnetId : existingVnetId
+output privateEndpointSubnetId string = isNewDeployment ? privateEndpointSubnetId : 'N/A'
+output sessionHostVmNames array = isNewDeployment ? sessionHosts!.outputs.vmNames : (isBrownfieldSessionHostReplacement ? expandedSessionHosts!.outputs.vmNames : [])
+output expandOperation string = expandOperation
+output day2Operation string = day2Operation
+output fslogixStorageAccount string = isNewDeployment ? (deployFSLogix ? fslogix!.outputs.storageAccountName : 'N/A') : 'N/A'
+output fslogixPrivateEndpointId string = isNewDeployment ? ((deployFSLogix && deployFSLogixPrivateEndpoint) ? fslogixDns!.outputs.privateEndpointId : 'N/A') : (isDay2ReconcileFsLogixPrivateConnectivity ? brownfieldFslogixPrivateDns!.outputs.privateEndpointId : 'N/A')
+output logAnalyticsWorkspace string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.workspaceName : 'N/A') : (isBrownfieldMonitoringAlignment ? brownfieldMonitoring!.outputs.workspaceName : 'N/A')
+output logAnalyticsWorkspaceId string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.workspaceId : 'N/A') : (isBrownfieldMonitoringAlignment ? brownfieldMonitoring!.outputs.workspaceId : 'N/A')
+output monitoringDataCollectionRuleId string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : 'N/A') : 'N/A'
+output scalingPlanName string = isDay2ScalingPlan ? scalingPlan!.outputs.scalingPlanName : 'N/A'
+output scalingPlanId string = isDay2ScalingPlan ? scalingPlan!.outputs.scalingPlanId : 'N/A'
+output deploymentScenario string = deploymentScenario
 output effectiveAvdMode string = effectiveAvdMode
-output avdRolesAssigned bool = length(desktopEffectiveAssignments) > 0 || length(remoteAppEffectiveAssignments) > 0
+output avdRolesAssigned bool = isNewDeployment ? (length(desktopEffectiveAssignments) > 0 || length(remoteAppEffectiveAssignments) > 0) : isDay2UpdateAccessAssignments
+output brownfieldOperationSummary string = isExpandAddSessionHosts
+  ? 'AddSessionHosts will create new session host VMs in the selected host pool resource group and register them against the existing host pool.'
+  : (isExpandVmBaselineRemediation
+    ? 'RemediateVmImageBaseline will stage replacement session hosts with the requested VM size and image baseline in the selected host pool. Existing hosts are not removed automatically.'
+  : (isBrownfieldMonitoringAlignment
+    ? 'AlignMonitoringPosture will enable control-plane diagnostic settings for the selected host pool, related workspaces, and related application groups.'
+    : (isDay2ScalingPlan
+      ? 'ConfigureScalingPlan will create or update the scaling plan attachment for the selected pooled host pool without recreating session hosts.'
+      : (isDay2UpdateAccessAssignments
+        ? 'UpdateAccessAssignments will apply AVD user role assignments across the discovered desktop and RemoteApp application groups.'
+        : (isDay2ReconcileFsLogixPrivateConnectivity
+          ? 'ReconcileFsLogixPrivateConnectivity will create a private endpoint for the selected FSLogix storage account and optionally create and link the private DNS zone to the selected VNet.'
+          : (isDay2GenerateOperationalSummary
+            ? 'GenerateOperationalSummary is a no-change brownfield posture summary for the selected host pool.'
+            : 'NewDeployment will create a new end-to-end Azure Virtual Desktop environment.'))))))

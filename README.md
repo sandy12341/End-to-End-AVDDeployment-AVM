@@ -8,6 +8,10 @@ Parallel modernization lane for the Azure Virtual Desktop deployment. This repo 
 
 This repo now treats Azure Managed Application as the supported public deployment path. Direct raw-template deployment remains available only as an internal validation lane.
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.json)
+
+Current button target: internal validation lane. Replace this with the managed-application launch URL after the AVM managed application definition is published with a stable customer-facing portal entrypoint.
+
 This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or package URI here.
 **What You Get:**
 - Multi-step portal wizard (5 steps)
