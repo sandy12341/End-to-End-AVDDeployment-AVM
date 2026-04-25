@@ -302,7 +302,7 @@
             "defaultValue": "sp-avd-scaling",
             "constraints": {
               "required": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan'))]",
-              "regex": "^[A-Za-z0-9@.\\-_ ]{3,64}$",
+                "regex": "^[A-Za-z0-9@._ -]{3,64}$",
               "validationMessage": "Use 3-64 letters, numbers, spaces, periods, underscores, or hyphens."
             }
           },
@@ -753,7 +753,7 @@
             "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
             "constraints": {
               "required": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
-              "regex": "^[A-Za-z0-9][A-Za-z0-9\-_]{2,61}[A-Za-z0-9]$",
+              "regex": "^[A-Za-z0-9][A-Za-z0-9_-]{2,61}[A-Za-z0-9]$",
               "validationMessage": "Use 4-63 letters, numbers, underscores, or hyphens."
             }
           },
