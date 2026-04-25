@@ -120,7 +120,7 @@ This direct-template path is retained for engineering validation. The supported 
 1. **Use the internal validation Deploy to Azure link** only when you need parity testing against the managed-app package:
 
    ```
-  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.json
+  https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2F702fcbd79db9271302b67e2f103e4685099ca6d7%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2F702fcbd79db9271302b67e2f103e4685099ca6d7%2Finfra%2FcreateUiDefinition.json
    ```
 
 2. **Use the scenario selector first** in the portal wizard. The validation lane now exposes the same `NewDeployment`, `ExpandExistingDeployment`, and `Day2Operations` contract as the managed-app package.

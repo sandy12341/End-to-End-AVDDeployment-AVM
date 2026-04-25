@@ -8,7 +8,7 @@ Parallel modernization lane for the Azure Virtual Desktop deployment. This repo 
 
 This repo now treats Azure Managed Application as the supported public deployment path. Direct raw-template deployment remains available only as an internal validation lane.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2F702fcbd79db9271302b67e2f103e4685099ca6d7%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2F702fcbd79db9271302b67e2f103e4685099ca6d7%2Finfra%2FcreateUiDefinition.json)
 
 Current button target: internal validation lane. The repo button now mirrors the same scenario-driven UI contract as the managed-app package, but it still launches the raw-template validation surface until a stable managed-application portal URL is published.
 
