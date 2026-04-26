@@ -316,6 +316,7 @@ var effectiveExistingVnetResourceGroupName = empty(existingVnetResourceGroupName
 var effectiveExistingHostPoolResourceGroupName = empty(existingHostPoolResourceGroupName) ? resourceGroup().name : existingHostPoolResourceGroupName
 var desktopAppGroupName = 'dag-avd-${namingPrefix}'
 var remoteAppGroupName = 'rag-avd-${namingPrefix}'
+var newDeploymentSessionHostVmNames = [for i in range(0, sessionHostCount): 'vm-avd-${namingPrefix}-${i}']
 var existingVnetId = resourceId(effectiveExistingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks', existingVnetName)
 var normalizedAvdUserObjectIds = [for oid in split(replace(replace(avdUserObjectIds, '\r\n', ','), '\n', ','), ','): trim(oid)]
 var legacyAccessAssignments = [for oid in normalizedAvdUserObjectIds: {
@@ -405,8 +406,6 @@ module sessionHosts '../modules/sessionhosts.bicep' = if (isNewDeployment) {
     domainJoinUsername: domainJoinUsername
     domainJoinPassword: domainJoinPassword
     domainJoinOuPath: domainJoinOuPath
-    enableMonitoring: deployMonitoring
-    dataCollectionRuleId: deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : ''
     deploymentInstanceSeed: deploymentInstanceSeed
     vmNamePrefix: 'vm-avd-${namingPrefix}'
     tags: tags
@@ -431,8 +430,6 @@ module expandedSessionHosts '../modules/sessionhosts.bicep' = if (isBrownfieldSe
     domainJoinUsername: domainJoinUsername
     domainJoinPassword: domainJoinPassword
     domainJoinOuPath: domainJoinOuPath
-    enableMonitoring: false
-    dataCollectionRuleId: ''
     deploymentInstanceSeed: deploymentInstanceSeed
     vmNamePrefix: 'vm-avd-${namingPrefix}'
     tags: tags
@@ -485,6 +482,16 @@ module monitoring '../modules/monitoring.bicep' = if (isNewDeployment && deployM
     tags: tags
   }
 }
+
+module sessionHostMonitoringAssociation '../modules/existingVmMonitoringAssociation.bicep' = [for vmName in (isNewDeployment && deployMonitoring ? newDeploymentSessionHostVmNames : []): {
+  name: 'associate-monitoring-${take(vmName, 40)}'
+  params: {
+    location: location
+    vmName: vmName
+    dataCollectionRuleId: monitoring!.outputs.dataCollectionRuleId
+    tags: tags
+  }
+}]
 
 module scalingPlan '../modules/scalingPlan.bicep' = if (isDay2ScalingPlan) {
   name: 'configure-scaling-plan'
@@ -589,12 +596,6 @@ resource hostPoolDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
         enabled: true
       }
     ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
   }
 }
 
@@ -608,12 +609,6 @@ resource avdWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-
     logs: [
       {
         categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
         enabled: true
       }
     ]
@@ -633,12 +628,6 @@ resource desktopAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-
         enabled: true
       }
     ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
   }
 }
 
@@ -655,12 +644,6 @@ resource remoteAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-0
         enabled: true
       }
     ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
   }
 }
 
@@ -674,12 +657,6 @@ resource fslogixStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-0
     logs: [
       {
         categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
         enabled: true
       }
     ]

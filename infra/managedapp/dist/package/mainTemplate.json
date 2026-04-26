@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "9028327108837026271"
+      "templateHash": "12752064379459017058"
     }
   },
   "parameters": {
@@ -1007,7 +1007,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "3922077466700993221"
+              "templateHash": "4708618253347766835"
             }
           },
           "parameters": {
@@ -1727,6 +1727,11 @@
           "variables": {
             "copy": [
               {
+                "name": "newDeploymentSessionHostVmNames",
+                "count": "[length(range(0, parameters('sessionHostCount')))]",
+                "input": "[format('vm-avd-{0}-{1}', variables('namingPrefix'), range(0, parameters('sessionHostCount'))[copyIndex('newDeploymentSessionHostVmNames')])]"
+              },
+              {
                 "name": "normalizedAvdUserObjectIds",
                 "count": "[length(split(replace(replace(parameters('avdUserObjectIds'), '\r\n', ','), '\n', ','), ','))]",
                 "input": "[trim(split(replace(replace(parameters('avdUserObjectIds'), '\r\n', ','), '\n', ','), ',')[copyIndex('normalizedAvdUserObjectIds')])]"
@@ -1787,12 +1792,6 @@
                     "categoryGroup": "allLogs",
                     "enabled": true
                   }
-                ],
-                "metrics": [
-                  {
-                    "category": "AllMetrics",
-                    "enabled": true
-                  }
                 ]
               },
               "dependsOn": [
@@ -1811,12 +1810,6 @@
                 "logs": [
                   {
                     "categoryGroup": "allLogs",
-                    "enabled": true
-                  }
-                ],
-                "metrics": [
-                  {
-                    "category": "AllMetrics",
                     "enabled": true
                   }
                 ]
@@ -1839,12 +1832,6 @@
                     "categoryGroup": "allLogs",
                     "enabled": true
                   }
-                ],
-                "metrics": [
-                  {
-                    "category": "AllMetrics",
-                    "enabled": true
-                  }
                 ]
               },
               "dependsOn": [
@@ -1865,12 +1852,6 @@
                     "categoryGroup": "allLogs",
                     "enabled": true
                   }
-                ],
-                "metrics": [
-                  {
-                    "category": "AllMetrics",
-                    "enabled": true
-                  }
                 ]
               },
               "dependsOn": [
@@ -1889,12 +1870,6 @@
                 "logs": [
                   {
                     "categoryGroup": "allLogs",
-                    "enabled": true
-                  }
-                ],
-                "metrics": [
-                  {
-                    "category": "AllMetrics",
                     "enabled": true
                   }
                 ]
@@ -7875,10 +7850,6 @@
                   "domainJoinOuPath": {
                     "value": "[parameters('domainJoinOuPath')]"
                   },
-                  "enableMonitoring": {
-                    "value": "[parameters('deployMonitoring')]"
-                  },
-                  "dataCollectionRuleId": "[if(parameters('deployMonitoring'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'deploy-monitoring'), '2025-04-01').outputs.dataCollectionRuleId.value), createObject('value', ''))]",
                   "deploymentInstanceSeed": {
                     "value": "[parameters('deploymentInstanceSeed')]"
                   },
@@ -7896,7 +7867,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.42.1.51946",
-                      "templateHash": "12864308602559380981"
+                      "templateHash": "15398611694943881677"
                     }
                   },
                   "parameters": {
@@ -8013,20 +7984,6 @@
                       "defaultValue": {},
                       "metadata": {
                         "description": "Tags for all resources"
-                      }
-                    },
-                    "enableMonitoring": {
-                      "type": "bool",
-                      "defaultValue": false,
-                      "metadata": {
-                        "description": "When true, enables Azure Monitor Agent and guest telemetry collection on session hosts"
-                      }
-                    },
-                    "dataCollectionRuleId": {
-                      "type": "string",
-                      "defaultValue": "",
-                      "metadata": {
-                        "description": "Resource ID of the Data Collection Rule to associate to each session host when monitoring is enabled"
                       }
                     },
                     "vmNamePrefix": {
@@ -8282,47 +8239,6 @@
                         "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]",
                         "[extensionResourceId(resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName')), resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]])), 'avd-contributor'))]"
                       ]
-                    },
-                    {
-                      "copy": {
-                        "name": "azureMonitorAgent",
-                        "count": "[length(range(0, parameters('sessionHostCount')))]"
-                      },
-                      "condition": "[parameters('enableMonitoring')]",
-                      "type": "Microsoft.Compute/virtualMachines/extensions",
-                      "apiVersion": "2024-07-01",
-                      "name": "[format('{0}/{1}', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]), 'AzureMonitorWindowsAgent')]",
-                      "location": "[parameters('location')]",
-                      "tags": "[parameters('tags')]",
-                      "properties": {
-                        "publisher": "Microsoft.Azure.Monitor",
-                        "type": "AzureMonitorWindowsAgent",
-                        "typeHandlerVersion": "1.0",
-                        "autoUpgradeMinorVersion": true,
-                        "enableAutomaticUpgrade": true
-                      },
-                      "dependsOn": [
-                        "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]"
-                      ]
-                    },
-                    {
-                      "copy": {
-                        "name": "monitoringRuleAssociation",
-                        "count": "[length(range(0, parameters('sessionHostCount')))]"
-                      },
-                      "condition": "[parameters('enableMonitoring')]",
-                      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
-                      "apiVersion": "2024-03-11",
-                      "scope": "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]",
-                      "name": "vm-monitoring-association",
-                      "properties": {
-                        "dataCollectionRuleId": "[parameters('dataCollectionRuleId')]",
-                        "description": "Associates the session host with the shared AVD monitoring rule."
-                      },
-                      "dependsOn": [
-                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]]), 'AzureMonitorWindowsAgent')]",
-                        "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]"
-                      ]
                     }
                   ],
                   "outputs": {
@@ -8345,7 +8261,6 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Resources/deployments', 'deploy-hostpool')]",
-                "[resourceId('Microsoft.Resources/deployments', 'deploy-monitoring')]",
                 "[resourceId('Microsoft.Resources/deployments', 'deploy-network')]"
               ]
             },
@@ -8401,12 +8316,6 @@
                   "domainJoinOuPath": {
                     "value": "[parameters('domainJoinOuPath')]"
                   },
-                  "enableMonitoring": {
-                    "value": false
-                  },
-                  "dataCollectionRuleId": {
-                    "value": ""
-                  },
                   "deploymentInstanceSeed": {
                     "value": "[parameters('deploymentInstanceSeed')]"
                   },
@@ -8424,7 +8333,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.42.1.51946",
-                      "templateHash": "12864308602559380981"
+                      "templateHash": "15398611694943881677"
                     }
                   },
                   "parameters": {
@@ -8541,20 +8450,6 @@
                       "defaultValue": {},
                       "metadata": {
                         "description": "Tags for all resources"
-                      }
-                    },
-                    "enableMonitoring": {
-                      "type": "bool",
-                      "defaultValue": false,
-                      "metadata": {
-                        "description": "When true, enables Azure Monitor Agent and guest telemetry collection on session hosts"
-                      }
-                    },
-                    "dataCollectionRuleId": {
-                      "type": "string",
-                      "defaultValue": "",
-                      "metadata": {
-                        "description": "Resource ID of the Data Collection Rule to associate to each session host when monitoring is enabled"
                       }
                     },
                     "vmNamePrefix": {
@@ -8809,47 +8704,6 @@
                         "[resourceId('Microsoft.Compute/virtualMachines/extensions', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]]), 'JsonADDomainExtension')]",
                         "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]",
                         "[extensionResourceId(resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName')), resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]])), 'avd-contributor'))]"
-                      ]
-                    },
-                    {
-                      "copy": {
-                        "name": "azureMonitorAgent",
-                        "count": "[length(range(0, parameters('sessionHostCount')))]"
-                      },
-                      "condition": "[parameters('enableMonitoring')]",
-                      "type": "Microsoft.Compute/virtualMachines/extensions",
-                      "apiVersion": "2024-07-01",
-                      "name": "[format('{0}/{1}', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]), 'AzureMonitorWindowsAgent')]",
-                      "location": "[parameters('location')]",
-                      "tags": "[parameters('tags')]",
-                      "properties": {
-                        "publisher": "Microsoft.Azure.Monitor",
-                        "type": "AzureMonitorWindowsAgent",
-                        "typeHandlerVersion": "1.0",
-                        "autoUpgradeMinorVersion": true,
-                        "enableAutomaticUpgrade": true
-                      },
-                      "dependsOn": [
-                        "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]"
-                      ]
-                    },
-                    {
-                      "copy": {
-                        "name": "monitoringRuleAssociation",
-                        "count": "[length(range(0, parameters('sessionHostCount')))]"
-                      },
-                      "condition": "[parameters('enableMonitoring')]",
-                      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
-                      "apiVersion": "2024-03-11",
-                      "scope": "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]",
-                      "name": "vm-monitoring-association",
-                      "properties": {
-                        "dataCollectionRuleId": "[parameters('dataCollectionRuleId')]",
-                        "description": "Associates the session host with the shared AVD monitoring rule."
-                      },
-                      "dependsOn": [
-                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]]), 'AzureMonitorWindowsAgent')]",
-                        "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}', parameters('vmNamePrefix'), range(0, parameters('sessionHostCount'))[range(0, parameters('sessionHostCount'))[copyIndex()]]))]"
                       ]
                     }
                   ],
@@ -24688,6 +24542,105 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Resources/deployments', 'deploy-network')]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "sessionHostMonitoringAssociation",
+                "count": "[length(if(and(variables('isNewDeployment'), parameters('deployMonitoring')), variables('newDeploymentSessionHostVmNames'), createArray()))]"
+              },
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "[format('associate-monitoring-{0}', take(if(and(variables('isNewDeployment'), parameters('deployMonitoring')), variables('newDeploymentSessionHostVmNames'), createArray())[copyIndex()], 40))]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "vmName": {
+                    "value": "[if(and(variables('isNewDeployment'), parameters('deployMonitoring')), variables('newDeploymentSessionHostVmNames'), createArray())[copyIndex()]]"
+                  },
+                  "dataCollectionRuleId": {
+                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-monitoring'), '2025-04-01').outputs.dataCollectionRuleId.value]"
+                  },
+                  "tags": {
+                    "value": "[variables('tags')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.42.1.51946",
+                      "templateHash": "11612264584808748681"
+                    }
+                  },
+                  "parameters": {
+                    "location": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Azure region for the VM extension deployment."
+                      }
+                    },
+                    "vmName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Existing virtual machine name to onboard to guest monitoring."
+                      }
+                    },
+                    "dataCollectionRuleId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Data Collection Rule resource ID to associate with the VM."
+                      }
+                    },
+                    "tags": {
+                      "type": "object",
+                      "defaultValue": {},
+                      "metadata": {
+                        "description": "Tags applied to the VM extension resources."
+                      }
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Compute/virtualMachines/extensions",
+                      "apiVersion": "2024-07-01",
+                      "name": "[format('{0}/{1}', parameters('vmName'), 'AzureMonitorWindowsAgent')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[parameters('tags')]",
+                      "properties": {
+                        "publisher": "Microsoft.Azure.Monitor",
+                        "type": "AzureMonitorWindowsAgent",
+                        "typeHandlerVersion": "1.0",
+                        "autoUpgradeMinorVersion": true,
+                        "enableAutomaticUpgrade": true
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+                      "apiVersion": "2024-03-11",
+                      "scope": "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]",
+                      "name": "vm-monitoring-association",
+                      "properties": {
+                        "dataCollectionRuleId": "[parameters('dataCollectionRuleId')]",
+                        "description": "Associates the session host with the brownfield monitoring rule."
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines/extensions', parameters('vmName'), 'AzureMonitorWindowsAgent')]"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deployments', 'deploy-monitoring')]"
               ]
             },
             {
