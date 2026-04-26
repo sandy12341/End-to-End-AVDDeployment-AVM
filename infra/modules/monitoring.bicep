@@ -84,7 +84,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' 
         {
           name: 'vmInsightsWindowsEvents'
           streams: [
-            'Microsoft-WindowsEvent'
+            'Microsoft-Event'
           ]
           xPathQueries: isEnhancedPreset ? [
             'Application!*[System[(Level=1 or Level=2 or Level=3)]]'
@@ -133,7 +133,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' 
       }
       {
         streams: [
-          'Microsoft-WindowsEvent'
+          'Microsoft-Event'
         ]
         destinations: [
           'logAnalyticsDestination'

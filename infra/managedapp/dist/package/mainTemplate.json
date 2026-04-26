@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "4723704604947882730"
+      "templateHash": "9028327108837026271"
     }
   },
   "parameters": {
@@ -1007,7 +1007,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "2600316141042706786"
+              "templateHash": "3922077466700993221"
             }
           },
           "parameters": {
@@ -21426,7 +21426,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.42.1.51946",
-                      "templateHash": "8091910406292610383"
+                      "templateHash": "7904139330136168301"
                     }
                   },
                   "parameters": {
@@ -21511,7 +21511,7 @@
                             {
                               "name": "vmInsightsWindowsEvents",
                               "streams": [
-                                "Microsoft-WindowsEvent"
+                                "Microsoft-Event"
                               ],
                               "xPathQueries": "[if(variables('isEnhancedPreset'), createArray('Application!*[System[(Level=1 or Level=2 or Level=3)]]', 'System!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-FSLogix-Apps/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-Windows-User Profile Service/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'), createArray('Application!*[System[(Level=1 or Level=2 or Level=3)]]', 'System!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-FSLogix-Apps/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-User Profile Service/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'))]"
                             }
@@ -21544,7 +21544,7 @@
                           },
                           {
                             "streams": [
-                              "Microsoft-WindowsEvent"
+                              "Microsoft-Event"
                             ],
                             "destinations": [
                               "logAnalyticsDestination"
@@ -25202,7 +25202,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.42.1.51946",
-                      "templateHash": "12305706906587427192"
+                      "templateHash": "1590760486890043169"
                     }
                   },
                   "parameters": {
@@ -28605,7 +28605,7 @@
                             "_generator": {
                               "name": "bicep",
                               "version": "0.42.1.51946",
-                              "templateHash": "8091910406292610383"
+                              "templateHash": "7904139330136168301"
                             }
                           },
                           "parameters": {
@@ -28690,7 +28690,7 @@
                                     {
                                       "name": "vmInsightsWindowsEvents",
                                       "streams": [
-                                        "Microsoft-WindowsEvent"
+                                        "Microsoft-Event"
                                       ],
                                       "xPathQueries": "[if(variables('isEnhancedPreset'), createArray('Application!*[System[(Level=1 or Level=2 or Level=3)]]', 'System!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-FSLogix-Apps/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]', 'Microsoft-Windows-User Profile Service/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'), createArray('Application!*[System[(Level=1 or Level=2 or Level=3)]]', 'System!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-FSLogix-Apps/Operational!*[System[(Level=1 or Level=2 or Level=3)]]', 'Microsoft-Windows-User Profile Service/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'))]"
                                     }
@@ -28723,7 +28723,7 @@
                                   },
                                   {
                                     "streams": [
-                                      "Microsoft-WindowsEvent"
+                                      "Microsoft-Event"
                                     ],
                                     "destinations": [
                                       "logAnalyticsDestination"
