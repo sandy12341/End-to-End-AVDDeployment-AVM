@@ -22,6 +22,23 @@ param existingWorkspaceResourceId string = ''
 @description('Retention in days for a newly created Log Analytics workspace.')
 param retentionDays int = 30
 
+@description('Monitoring posture scope for brownfield alignment.')
+@allowed(['ControlPlaneOnly', 'FullMonitoringPosture'])
+param monitoringScope string = 'ControlPlaneOnly'
+
+@description('Resource group name that contains the existing session host VMs to onboard for guest monitoring.')
+param sessionHostVmResourceGroupName string = ''
+
+@description('Session host VM names discovered from the selected host pool and targeted for guest monitoring onboarding.')
+param sessionHostVmNames array = []
+
+@description('Data Collection Rule name used when full monitoring posture is selected.')
+param dataCollectionRuleName string = 'dcr-avd-brownfield'
+
+@description('Guest telemetry preset used when full monitoring posture is selected.')
+@allowed(['Standard', 'Enhanced'])
+param monitoringPreset string = 'Enhanced'
+
 @description('Whether to enable host pool diagnostic settings.')
 param enableHostPoolDiagnostics bool = true
 
@@ -34,7 +51,7 @@ param enableApplicationGroupDiagnostics bool = true
 @description('Tags for created resources.')
 param tags object = {}
 
-module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = if (createWorkspace) {
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = if (createWorkspace && monitoringScope == 'ControlPlaneOnly') {
   name: take('avm.res.operational-insights.workspace.${workspaceName}', 64)
   params: {
     name: workspaceName
@@ -48,7 +65,25 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = 
 
 var useCreatedWorkspace = createWorkspace && !empty(workspaceName)
 var useExistingWorkspace = !createWorkspace && !empty(existingWorkspaceResourceId)
-var effectiveWorkspaceId = useCreatedWorkspace ? logAnalytics!.outputs.resourceId : existingWorkspaceResourceId
+var enableGuestMonitoring = monitoringScope == 'FullMonitoringPosture' && (useCreatedWorkspace || useExistingWorkspace)
+var effectiveSessionHostVmResourceGroupName = empty(sessionHostVmResourceGroupName) ? resourceGroup().name : sessionHostVmResourceGroupName
+var guestMonitoringIndexes = enableGuestMonitoring ? range(0, length(sessionHostVmNames)) : []
+
+module guestMonitoringWorkspace './monitoring.bicep' = if (enableGuestMonitoring) {
+  name: take('brownfield-guest-monitoring-${hostPoolName}', 64)
+  params: {
+    location: location
+    workspaceName: workspaceName
+    existingWorkspaceResourceId: existingWorkspaceResourceId
+    retentionDays: retentionDays
+    dataCollectionRuleName: dataCollectionRuleName
+    monitoringPreset: monitoringPreset
+    tags: tags
+  }
+}
+
+#disable-next-line BCP318
+var effectiveWorkspaceId = enableGuestMonitoring ? guestMonitoringWorkspace!.outputs.workspaceId : (useCreatedWorkspace ? logAnalytics!.outputs.resourceId : existingWorkspaceResourceId)
 
 resource hostPool 'Microsoft.DesktopVirtualization/hostPools@2025-10-10' existing = {
   name: hostPoolName
@@ -62,12 +97,24 @@ resource applicationGroups 'Microsoft.DesktopVirtualization/applicationGroups@20
   name: applicationGroupName
 }]
 
+module guestMonitoringAssociation './existingVmMonitoringAssociation.bicep' = [for index in guestMonitoringIndexes: {
+  name: take('existing-vm-monitoring-${sessionHostVmNames[index]}', 64)
+  scope: resourceGroup(effectiveSessionHostVmResourceGroupName)
+  params: {
+    location: location
+    vmName: sessionHostVmNames[index]
+    #disable-next-line BCP318
+    dataCollectionRuleId: guestMonitoringWorkspace!.outputs.dataCollectionRuleId
+    tags: tags
+  }
+}]
+
 #disable-next-line use-recent-api-versions
-resource hostPoolDiagnosticsCreatedWorkspace 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableHostPoolDiagnostics && useCreatedWorkspace) {
+resource hostPoolDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableHostPoolDiagnostics && (useCreatedWorkspace || useExistingWorkspace)) {
   name: 'diag-hostpool-to-law'
   scope: hostPool
   properties: {
-    workspaceId: logAnalytics!.outputs.resourceId
+    workspaceId: effectiveWorkspaceId
     logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
@@ -85,33 +132,11 @@ resource hostPoolDiagnosticsCreatedWorkspace 'Microsoft.Insights/diagnosticSetti
 }
 
 #disable-next-line use-recent-api-versions
-resource hostPoolDiagnosticsExistingWorkspace 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableHostPoolDiagnostics && useExistingWorkspace) {
-  name: 'diag-hostpool-to-law'
-  scope: hostPool
-  properties: {
-    workspaceId: existingWorkspaceResourceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-#disable-next-line use-recent-api-versions
-resource workspaceDiagnosticsCreatedWorkspace 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (workspaceNameItem, index) in workspaceNames: if (enableWorkspaceDiagnostics && useCreatedWorkspace) {
+resource workspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (workspaceNameItem, index) in workspaceNames: if (enableWorkspaceDiagnostics && (useCreatedWorkspace || useExistingWorkspace)) {
   name: 'diag-workspace-to-law'
   scope: workspaces[index]
   properties: {
-    workspaceId: logAnalytics!.outputs.resourceId
+    workspaceId: effectiveWorkspaceId
     logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
@@ -129,55 +154,11 @@ resource workspaceDiagnosticsCreatedWorkspace 'Microsoft.Insights/diagnosticSett
 }]
 
 #disable-next-line use-recent-api-versions
-resource workspaceDiagnosticsExistingWorkspace 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (workspaceNameItem, index) in workspaceNames: if (enableWorkspaceDiagnostics && useExistingWorkspace) {
-  name: 'diag-workspace-to-law'
-  scope: workspaces[index]
-  properties: {
-    workspaceId: existingWorkspaceResourceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}]
-
-#disable-next-line use-recent-api-versions
-resource applicationGroupDiagnosticsCreatedWorkspace 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (applicationGroupName, index) in applicationGroupNames: if (enableApplicationGroupDiagnostics && useCreatedWorkspace) {
+resource applicationGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (applicationGroupName, index) in applicationGroupNames: if (enableApplicationGroupDiagnostics && (useCreatedWorkspace || useExistingWorkspace)) {
   name: 'diag-appgroup-to-law'
   scope: applicationGroups[index]
   properties: {
-    workspaceId: logAnalytics!.outputs.resourceId
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}]
-
-#disable-next-line use-recent-api-versions
-resource applicationGroupDiagnosticsExistingWorkspace 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [for (applicationGroupName, index) in applicationGroupNames: if (enableApplicationGroupDiagnostics && useExistingWorkspace) {
-  name: 'diag-appgroup-to-law'
-  scope: applicationGroups[index]
-  properties: {
-    workspaceId: existingWorkspaceResourceId
+    workspaceId: effectiveWorkspaceId
     logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
@@ -195,7 +176,12 @@ resource applicationGroupDiagnosticsExistingWorkspace 'Microsoft.Insights/diagno
 }]
 
 output workspaceId string = effectiveWorkspaceId
-output workspaceName string = useCreatedWorkspace ? logAnalytics!.outputs.name : last(split(existingWorkspaceResourceId, '/'))
+#disable-next-line BCP318
+output workspaceName string = enableGuestMonitoring ? guestMonitoringWorkspace!.outputs.workspaceName : (useCreatedWorkspace ? logAnalytics!.outputs.name : last(split(existingWorkspaceResourceId, '/')))
 output hostPoolDiagnosticsEnabled bool = enableHostPoolDiagnostics && (useCreatedWorkspace || useExistingWorkspace)
 output monitoredWorkspaceCount int = enableWorkspaceDiagnostics && (useCreatedWorkspace || useExistingWorkspace) ? length(workspaceNames) : 0
 output monitoredApplicationGroupCount int = enableApplicationGroupDiagnostics && (useCreatedWorkspace || useExistingWorkspace) ? length(applicationGroupNames) : 0
+output guestMonitoringEnabled bool = enableGuestMonitoring
+output guestMonitoringSessionHostCount int = enableGuestMonitoring ? length(sessionHostVmNames) : 0
+#disable-next-line BCP318
+output dataCollectionRuleId string = enableGuestMonitoring ? guestMonitoringWorkspace!.outputs.dataCollectionRuleId : 'N/A'

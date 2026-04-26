@@ -41,6 +41,14 @@ param relatedRemoteAppApplicationGroupNames array = []
 @allowed(['CreateNew', 'UseExisting'])
 param brownfieldMonitoringWorkspaceMode string = 'CreateNew'
 
+@description('Monitoring scope for brownfield monitoring alignment.')
+@allowed(['ControlPlaneOnly', 'FullMonitoringPosture'])
+param brownfieldMonitoringScope string = 'ControlPlaneOnly'
+
+@description('Guest telemetry preset for brownfield full monitoring posture.')
+@allowed(['Standard', 'Enhanced'])
+param brownfieldMonitoringPreset string = 'Standard'
+
 @description('Name of the Log Analytics workspace to create for brownfield monitoring alignment.')
 param brownfieldMonitoringWorkspaceName string = ''
 
@@ -51,6 +59,12 @@ param brownfieldMonitoringExistingWorkspaceResourceId string = ''
 @minValue(30)
 @maxValue(730)
 param brownfieldMonitoringRetentionDays int = 30
+
+@description('Resource group name that contains existing session host VMs to onboard for brownfield full monitoring posture.')
+param brownfieldMonitoringSessionHostVmResourceGroupName string = ''
+
+@description('Existing session host VM names derived from the selected brownfield host pool and targeted for guest monitoring onboarding.')
+param brownfieldMonitoringSessionHostVmNames array = []
 
 @description('Resource ID of the existing FSLogix storage account targeted by brownfield reconciliation.')
 param brownfieldFslogixStorageAccountResourceId string = ''
@@ -338,9 +352,13 @@ module sharedSolution '../solution/avdDeploymentCore.bicep' = {
     relatedDesktopApplicationGroupNames: relatedDesktopApplicationGroupNames
     relatedRemoteAppApplicationGroupNames: relatedRemoteAppApplicationGroupNames
     brownfieldMonitoringWorkspaceMode: brownfieldMonitoringWorkspaceMode
+    brownfieldMonitoringScope: brownfieldMonitoringScope
+    brownfieldMonitoringPreset: brownfieldMonitoringPreset
     brownfieldMonitoringWorkspaceName: brownfieldMonitoringWorkspaceName
     brownfieldMonitoringExistingWorkspaceResourceId: brownfieldMonitoringExistingWorkspaceResourceId
     brownfieldMonitoringRetentionDays: brownfieldMonitoringRetentionDays
+    brownfieldMonitoringSessionHostVmResourceGroupName: brownfieldMonitoringSessionHostVmResourceGroupName
+    brownfieldMonitoringSessionHostVmNames: brownfieldMonitoringSessionHostVmNames
     brownfieldFslogixStorageAccountResourceId: brownfieldFslogixStorageAccountResourceId
     brownfieldFslogixPrivateDnsZoneMode: brownfieldFslogixPrivateDnsZoneMode
     scalingPlanName: scalingPlanName

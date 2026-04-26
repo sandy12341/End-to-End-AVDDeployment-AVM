@@ -71,6 +71,12 @@ Use this entrypoint for:
 - reconcile FSLogix private connectivity
 - generate operational summary
 
+Monitoring alignment choices in the Day-2 wizard:
+- `ControlPlaneOnly` updates diagnostic settings on the host pool, related workspaces, and related application groups without touching existing session hosts.
+- `FullMonitoringPosture` keeps the control-plane alignment and also discovers the current session hosts, onboards the matching VMs to Azure Monitor Agent, and associates a Data Collection Rule.
+- `Standard` guest telemetry preset collects essential CPU, queue, memory, disk, and AVD/FSLogix/profile warning and error signals.
+- `Enhanced` guest telemetry preset adds paging, additional disk and network detail, and informational AVD, RdpCoreTS, FSLogix, and User Profile Service events for deeper troubleshooting.
+
 Publication status:
 - package artifact: `infra/managedapp/dist/app-day2.zip`
 - UI definition: `infra/managedapp/createUiDefinition.day2.json`

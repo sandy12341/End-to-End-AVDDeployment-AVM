@@ -170,6 +170,14 @@ param relatedRemoteAppApplicationGroupNames array = []
 @allowed(['CreateNew', 'UseExisting'])
 param brownfieldMonitoringWorkspaceMode string = 'CreateNew'
 
+@description('Monitoring scope for brownfield monitoring alignment.')
+@allowed(['ControlPlaneOnly', 'FullMonitoringPosture'])
+param brownfieldMonitoringScope string = 'ControlPlaneOnly'
+
+@description('Guest telemetry preset for brownfield full monitoring posture.')
+@allowed(['Standard', 'Enhanced'])
+param brownfieldMonitoringPreset string = 'Standard'
+
 @description('Name of the Log Analytics workspace to create for brownfield monitoring alignment.')
 param brownfieldMonitoringWorkspaceName string = ''
 
@@ -180,6 +188,12 @@ param brownfieldMonitoringExistingWorkspaceResourceId string = ''
 @minValue(30)
 @maxValue(730)
 param brownfieldMonitoringRetentionDays int = 30
+
+@description('Resource group name that contains existing session host VMs to onboard for brownfield full monitoring posture.')
+param brownfieldMonitoringSessionHostVmResourceGroupName string = ''
+
+@description('Existing session host VM names derived from the selected brownfield host pool and targeted for guest monitoring onboarding.')
+param brownfieldMonitoringSessionHostVmNames array = []
 
 @description('Resource ID of the existing FSLogix storage account targeted by brownfield reconciliation.')
 param brownfieldFslogixStorageAccountResourceId string = ''
@@ -467,6 +481,7 @@ module monitoring '../modules/monitoring.bicep' = if (isNewDeployment && deployM
     location: location
     workspaceName: 'log-avd-${namingPrefix}'
     dataCollectionRuleName: 'dcr-avd-${namingPrefix}'
+    monitoringPreset: 'Enhanced'
     tags: tags
   }
 }
@@ -514,9 +529,13 @@ module brownfieldMonitoring '../modules/brownfieldMonitoring.bicep' = if (isBrow
     workspaceNames: existingWorkspaceNames
     applicationGroupNames: relatedApplicationGroupNames
     createWorkspace: brownfieldMonitoringWorkspaceMode == 'CreateNew'
+    monitoringScope: brownfieldMonitoringScope
+    monitoringPreset: brownfieldMonitoringPreset
     workspaceName: brownfieldMonitoringWorkspaceName
     existingWorkspaceResourceId: brownfieldMonitoringExistingWorkspaceResourceId
     retentionDays: brownfieldMonitoringRetentionDays
+    sessionHostVmResourceGroupName: brownfieldMonitoringSessionHostVmResourceGroupName
+    sessionHostVmNames: brownfieldMonitoringSessionHostVmNames
     enableHostPoolDiagnostics: true
     enableWorkspaceDiagnostics: true
     enableApplicationGroupDiagnostics: true
@@ -716,7 +735,7 @@ output fslogixStorageAccount string = isNewDeployment ? (deployFSLogix ? fslogix
 output fslogixPrivateEndpointId string = isNewDeployment ? ((deployFSLogix && deployFSLogixPrivateEndpoint) ? fslogixDns!.outputs.privateEndpointId : 'N/A') : (isDay2ReconcileFsLogixPrivateConnectivity ? brownfieldFslogixPrivateDns!.outputs.privateEndpointId : 'N/A')
 output logAnalyticsWorkspace string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.workspaceName : 'N/A') : (isBrownfieldMonitoringAlignment ? brownfieldMonitoring!.outputs.workspaceName : 'N/A')
 output logAnalyticsWorkspaceId string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.workspaceId : 'N/A') : (isBrownfieldMonitoringAlignment ? brownfieldMonitoring!.outputs.workspaceId : 'N/A')
-output monitoringDataCollectionRuleId string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : 'N/A') : 'N/A'
+output monitoringDataCollectionRuleId string = isNewDeployment ? (deployMonitoring ? monitoring!.outputs.dataCollectionRuleId : 'N/A') : (isBrownfieldMonitoringAlignment ? brownfieldMonitoring!.outputs.dataCollectionRuleId : 'N/A')
 output scalingPlanName string = isDay2ScalingPlan ? scalingPlan!.outputs.scalingPlanName : 'N/A'
 output scalingPlanId string = isDay2ScalingPlan ? scalingPlan!.outputs.scalingPlanId : 'N/A'
 output deploymentScenario string = deploymentScenario

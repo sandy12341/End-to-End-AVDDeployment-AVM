@@ -176,6 +176,14 @@
             }
           },
           {
+            "name": "sessionHostsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat(steps('brownfieldTarget').selectedHostPool.id, '/sessionHosts?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
             "name": "hostPoolInspectionSummary",
             "type": "Microsoft.Common.TextBlock",
             "visible": "[and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType'))]",
@@ -728,6 +736,25 @@
         "visible": "[or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')))]",
         "elements": [
           {
+            "name": "monitoringScope",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Monitoring alignment scope",
+            "defaultValue": "ControlPlaneOnly",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Control-plane only: diagnostic settings for the host pool, related workspaces, and related app groups",
+                  "value": "ControlPlaneOnly"
+                },
+                {
+                  "label": "Full monitoring posture: control-plane diagnostics plus guest AMA and DCR onboarding for discovered session hosts",
+                  "value": "FullMonitoringPosture"
+                }
+              ]
+            }
+          },
+          {
             "name": "monitoringWorkspaceMode",
             "type": "Microsoft.Common.DropDown",
             "label": "Log Analytics workspace mode",
@@ -784,10 +811,59 @@
             "showStepMarkers": true
           },
           {
+            "name": "guestMonitoringDiscoverySummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "options": {
+              "text": "[concat('Discovered session hosts in the selected host pool: ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '. Guest monitoring onboarding will target the corresponding VM names derived from those AVD session hosts.')]"
+            }
+          },
+          {
+            "name": "monitoringPreset",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Guest telemetry preset",
+            "defaultValue": "Standard",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+              "allowedValues": [
+                {
+                  "label": "Standard: essential CPU, queue, memory, disk, and AVD/FSLogix/profile errors and warnings",
+                  "value": "Standard"
+                },
+                {
+                  "label": "Enhanced: Standard plus paging, extra disk and network detail, and informational AVD/FSLogix/profile events",
+                  "value": "Enhanced"
+                }
+              ]
+            }
+          },
+          {
+            "name": "monitoringPresetSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "options": {
+              "text": "[if(equals(steps('monitoringSettings').monitoringPreset, 'Enhanced'), 'Enhanced preset collects the Standard baseline plus memory paging, extra disk latency and queue detail, network queue and packet errors, and informational Terminal Services, RdpCoreTS, FSLogix, and User Profile Service events.', 'Standard preset collects essential CPU, processor queue, available and committed memory, core disk latency and throughput, network throughput, and critical, error, and warning events from Terminal Services, RdpCoreTS, FSLogix, and User Profile Service channels.')]"
+            }
+          },
+          {
+            "name": "sessionHostVmResourceGroupName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Session host VM resource group name",
+            "defaultValue": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '')]",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "toolTip": "Use the resource group that contains the existing session host virtual machines. This defaults to the selected host pool resource group because that is the most common layout.",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+              "regex": "^[A-Za-z0-9._()\\-]{1,90}$",
+              "validationMessage": "Enter the resource group name that contains the existing session host virtual machines."
+            }
+          },
+          {
             "name": "monitoringSettingsNote",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "This action aligns control-plane diagnostic settings on the selected host pool, discovered workspaces, and discovered application groups. It does not redeploy session hosts or guest-level Azure Monitor Agent associations."
+              "text": "[if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), concat('This action aligns control-plane diagnostic settings and also onboards the discovered session host virtual machines to Azure Monitor Agent and a Data Collection Rule using the ', steps('monitoringSettings').monitoringPreset, ' guest telemetry preset. Session hosts are not recreated.'), 'This action aligns control-plane diagnostic settings on the selected host pool, discovered workspaces, and discovered application groups. It does not redeploy session hosts or guest-level Azure Monitor Agent associations.')]"
             }
           }
         ]
@@ -897,7 +973,7 @@
             "name": "brownfieldReviewSummary",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AddSessionHosts')), concat('Action: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) to existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing host pool, workspace, app groups, storage, and scaling plan resources are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Control-plane diagnostics will target ', if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), concat('a new workspace named ', steps('monitoringSettings').monitoringWorkspaceName), 'the selected existing Log Analytics workspace'), '.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline')), concat('Action: stage ', string(steps('instanceDetails').sessionHostCount), ' replacement session host(s) with the requested VM/image baseline for host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing hosts are not removed automatically.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), concat('Action: ', if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'update the existing scaling plan attachment', 'create and attach a scaling plan'), ' for pooled host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), 'Action: update access assignments across the discovered application groups.', if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), 'Action: reconcile FSLogix storage private connectivity by creating a private endpoint and applying the selected DNS mode.', 'Action: generate a no-change operational summary for the selected brownfield target.'))))))]"
+              "text": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AddSessionHosts')), concat('Action: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) to existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing host pool, workspace, app groups, storage, and scaling plan resources are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. ', if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), concat('Full monitoring posture with the ', steps('monitoringSettings').monitoringPreset, ' preset will target ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), ' discovered session host(s) and use VM resource group ', steps('monitoringSettings').sessionHostVmResourceGroupName, '. Workspace target: '), 'Control-plane diagnostics will target '), if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), concat('a new workspace named ', steps('monitoringSettings').monitoringWorkspaceName), 'the selected existing Log Analytics workspace'), '.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline')), concat('Action: stage ', string(steps('instanceDetails').sessionHostCount), ' replacement session host(s) with the requested VM/image baseline for host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing hosts are not removed automatically.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), concat('Action: ', if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'update the existing scaling plan attachment', 'create and attach a scaling plan'), ' for pooled host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. ', if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), concat('Full monitoring posture with the ', steps('monitoringSettings').monitoringPreset, ' preset will target ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), ' discovered session host(s) and use VM resource group ', steps('monitoringSettings').sessionHostVmResourceGroupName, '. '), ''), 'Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), 'Action: update access assignments across the discovered application groups.', if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), 'Action: reconcile FSLogix storage private connectivity by creating a private endpoint and applying the selected DNS mode.', 'Action: generate a no-change operational summary for the selected brownfield target.'))))))]"
             }
           },
           {
@@ -1752,9 +1828,13 @@
       "deployFSLogixPrivateEndpoint": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), false, steps('storageMonitoring').deployFSLogixPrivateEndpoint)]",
       "deployMonitoring": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), false, steps('storageMonitoring').deployMonitoring)]",
       "brownfieldMonitoringWorkspaceMode": "[if(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+      "brownfieldMonitoringScope": "[if(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), steps('monitoringSettings').monitoringScope, 'ControlPlaneOnly')]",
+      "brownfieldMonitoringPreset": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')), steps('monitoringSettings').monitoringPreset, 'Standard')]",
       "brownfieldMonitoringWorkspaceName": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')), steps('monitoringSettings').monitoringWorkspaceName, '')]",
       "brownfieldMonitoringExistingWorkspaceResourceId": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting'), contains(steps('monitoringSettings').existingLogAnalyticsWorkspace, 'id')), steps('monitoringSettings').existingLogAnalyticsWorkspace.id, '')]",
       "brownfieldMonitoringRetentionDays": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')), steps('monitoringSettings').monitoringRetentionDays, 30)]",
+      "brownfieldMonitoringSessionHostVmResourceGroupName": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')), steps('monitoringSettings').sessionHostVmResourceGroupName, '')]",
+      "brownfieldMonitoringSessionHostVmNames": "[if(and(or(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture'))), equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')), map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.'))), parse('[]'))]",
       "scalingPlanName": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanName, '')]",
       "scalingPlanFriendlyName": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanFriendlyName, '')]",
       "scalingPlanDescription": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('scalingPlanSettings').scalingPlanDescription, '')]",

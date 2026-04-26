@@ -190,6 +190,36 @@ These links intentionally open the published definition resource blade, which is
 - UI wrapper: `infra/managedapp/createUiDefinition.day2.json`
 - Intended actions: configure scaling plans, align monitoring posture, update access assignments, reconcile FSLogix private connectivity, generate operational summary
 
+### 2.2.3 Day-2 Monitoring Alignment Options
+
+The `Launch Day-2 Operations` wizard now exposes two monitoring scope choices when the operator selects `AlignMonitoringPosture`.
+
+1. `ControlPlaneOnly`
+- Updates diagnostic settings on the selected host pool.
+- Updates diagnostic settings on the related AVD workspaces and application groups discovered from that host pool.
+- Does not modify existing session host virtual machines.
+
+2. `FullMonitoringPosture`
+- Applies the same control-plane diagnostic settings alignment.
+- Discovers the current AVD session hosts from the selected host pool.
+- Derives the matching VM names and targets the provided VM resource group.
+- Installs or updates Azure Monitor Agent on those existing VMs.
+- Associates the VMs with the Day-2 Data Collection Rule.
+
+When `FullMonitoringPosture` is selected, the operator must also choose a guest telemetry preset:
+
+1. `Standard`
+- Collects essential CPU, processor queue, available and committed memory, core disk latency and throughput, and network throughput counters.
+- Collects critical, error, and warning events from Terminal Services, RemoteConnectionManager, RdpCoreTS, FSLogix, and User Profile Service channels.
+- Fits normal operational baselining with lower ingestion than the deeper preset.
+
+2. `Enhanced`
+- Includes the full `Standard` baseline.
+- Adds paging, expanded disk latency and queue detail, and network queue and packet error counters.
+- Adds informational Terminal Services, RdpCoreTS, FSLogix, and User Profile Service events for incident investigation and deeper troubleshooting.
+
+If the operator chooses `UseExisting` for the Log Analytics workspace, the Day-2 alignment reuses that workspace. If the operator chooses `CreateNew`, the wizard creates a new workspace and wires the guest telemetry rule to it.
+
 3. Deploy New Environment
 - Engineering validation button: raw-template lane in this repo
 - Managed application definition name: `avd-new-environment-avm`

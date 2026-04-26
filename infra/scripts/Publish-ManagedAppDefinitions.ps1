@@ -30,28 +30,45 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $templateFile = Join-Path $repoRoot 'infra\managedapp\deployDefinitions.bicep'
+$parametersFile = Join-Path ([System.IO.Path]::GetTempPath()) ('managedapp-definitions.{0}.parameters.json' -f ([guid]::NewGuid().ToString('N')))
 
 az group create --name $ResourceGroupName --location $Location | Out-Null
 
 $deploymentName = 'managedapp-definitions'
-$arguments = @(
-    'deployment', 'group',
-    $(if ($WhatIf) { 'what-if' } else { 'create' }),
-    '--name', $deploymentName,
-    '--resource-group', $ResourceGroupName,
-    '--template-file', $templateFile,
-    '--parameters',
-    "location=$Location",
-    "principalId=$PrincipalId",
-    "roleDefinitionId=$RoleDefinitionId",
-    "lockLevel=$LockLevel",
-    "newEnvironmentDefinitionName=$NewEnvironmentDefinitionName",
-    "newEnvironmentPackageFileUri=$NewEnvironmentPackageFileUri",
-    "existingEnvironmentDefinitionName=$ExistingEnvironmentDefinitionName",
-    "existingEnvironmentPackageFileUri=$ExistingEnvironmentPackageFileUri",
-    "day2DefinitionName=$Day2DefinitionName",
-    "day2PackageFileUri=$Day2PackageFileUri"
-)
+$parametersPayload = @{
+    '$schema' = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
+    contentVersion = '1.0.0.0'
+    parameters = @{
+        location = @{ value = $Location }
+        principalId = @{ value = $PrincipalId }
+        roleDefinitionId = @{ value = $RoleDefinitionId }
+        lockLevel = @{ value = $LockLevel }
+        newEnvironmentDefinitionName = @{ value = $NewEnvironmentDefinitionName }
+        newEnvironmentPackageFileUri = @{ value = $NewEnvironmentPackageFileUri }
+        existingEnvironmentDefinitionName = @{ value = $ExistingEnvironmentDefinitionName }
+        existingEnvironmentPackageFileUri = @{ value = $ExistingEnvironmentPackageFileUri }
+        day2DefinitionName = @{ value = $Day2DefinitionName }
+        day2PackageFileUri = @{ value = $Day2PackageFileUri }
+    }
+}
 
-Write-Host ("Running: az {0}" -f ($arguments -join ' '))
-& az @arguments
+$parametersPayload | ConvertTo-Json -Depth 6 | Set-Content -Path $parametersFile -Encoding utf8
+
+try {
+    $arguments = @(
+        'deployment', 'group',
+        $(if ($WhatIf) { 'what-if' } else { 'create' }),
+        '--name', $deploymentName,
+        '--resource-group', $ResourceGroupName,
+        '--template-file', $templateFile,
+        '--parameters', "@$parametersFile"
+    )
+
+    Write-Host ("Running: az {0}" -f ($arguments -join ' '))
+    & az @arguments
+}
+finally {
+    if (Test-Path $parametersFile) {
+        Remove-Item -Path $parametersFile -Force
+    }
+}

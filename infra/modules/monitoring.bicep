@@ -2,7 +2,10 @@
 param location string
 
 @description('Log Analytics workspace name')
-param workspaceName string
+param workspaceName string = ''
+
+@description('Existing Log Analytics workspace resource ID to reuse instead of creating a new workspace.')
+param existingWorkspaceResourceId string = ''
 
 @description('Retention in days')
 param retentionDays int = 30
@@ -10,10 +13,14 @@ param retentionDays int = 30
 @description('Data Collection Rule name for guest telemetry')
 param dataCollectionRuleName string = 'dcr-avd-monitoring'
 
+@description('Guest telemetry preset for the Azure Virtual Desktop operations baseline.')
+@allowed(['Standard', 'Enhanced'])
+param monitoringPreset string = 'Enhanced'
+
 @description('Tags for all resources')
 param tags object = {}
 
-module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = {
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = if (empty(existingWorkspaceResourceId)) {
   name: take('avm.res.operational-insights.workspace.${workspaceName}', 64)
   params: {
     name: workspaceName
@@ -24,6 +31,9 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.15.0' = 
     enableTelemetry: false
   }
 }
+
+var effectiveWorkspaceId = empty(existingWorkspaceResourceId) ? logAnalytics!.outputs.resourceId : existingWorkspaceResourceId
+var isEnhancedPreset = monitoringPreset == 'Enhanced'
 
 resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' = {
   name: dataCollectionRuleName
@@ -40,9 +50,29 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' 
             'Microsoft-Perf'
           ]
           samplingFrequencyInSeconds: 60
-          counterSpecifiers: [
+          counterSpecifiers: isEnhancedPreset ? [
             '\\Processor Information(_Total)\\% Processor Time'
+            '\\System\\Processor Queue Length'
             '\\Memory\\Available MBytes'
+            '\\Memory\\% Committed Bytes In Use'
+            '\\Memory\\Pages/sec'
+            '\\LogicalDisk(_Total)\\% Free Space'
+            '\\LogicalDisk(_Total)\\Avg. Disk sec/Transfer'
+            '\\LogicalDisk(_Total)\\Avg. Disk sec/Read'
+            '\\LogicalDisk(_Total)\\Avg. Disk sec/Write'
+            '\\LogicalDisk(_Total)\\Disk Bytes/sec'
+            '\\LogicalDisk(_Total)\\Disk Transfers/sec'
+            '\\LogicalDisk(_Total)\\Current Disk Queue Length'
+            '\\LogicalDisk(*)\\% Free Space'
+            '\\Network Interface(*)\\Bytes Total/sec'
+            '\\Network Interface(*)\\Output Queue Length'
+            '\\Network Interface(*)\\Packets Outbound Errors'
+            '\\Network Interface(*)\\Packets Received Errors'
+          ] : [
+            '\\Processor Information(_Total)\\% Processor Time'
+            '\\System\\Processor Queue Length'
+            '\\Memory\\Available MBytes'
+            '\\Memory\\% Committed Bytes In Use'
             '\\LogicalDisk(_Total)\\% Free Space'
             '\\LogicalDisk(_Total)\\Avg. Disk sec/Transfer'
             '\\LogicalDisk(_Total)\\Disk Transfers/sec'
@@ -56,9 +86,22 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' 
           streams: [
             'Microsoft-WindowsEvent'
           ]
-          xPathQueries: [
+          xPathQueries: isEnhancedPreset ? [
             'Application!*[System[(Level=1 or Level=2 or Level=3)]]'
             'System!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'
+            'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'
+            'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'
+            'Microsoft-FSLogix-Apps/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'
+            'Microsoft-Windows-User Profile Service/Operational!*[System[(Level=1 or Level=2 or Level=3 or Level=4)]]'
+          ] : [
+            'Application!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'System!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'Microsoft-FSLogix-Apps/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'
+            'Microsoft-Windows-User Profile Service/Operational!*[System[(Level=1 or Level=2 or Level=3)]]'
           ]
         }
       ]
@@ -67,7 +110,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' 
       logAnalytics: [
         {
           name: 'logAnalyticsDestination'
-          workspaceResourceId: logAnalytics.outputs.resourceId
+          workspaceResourceId: effectiveWorkspaceId
         }
       ]
     }
@@ -100,7 +143,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2024-03-11' 
   }
 }
 
-output workspaceId string = logAnalytics.outputs.resourceId
-output workspaceName string = logAnalytics.outputs.name
+output workspaceId string = effectiveWorkspaceId
+output workspaceName string = empty(existingWorkspaceResourceId) ? logAnalytics!.outputs.name : last(split(existingWorkspaceResourceId, '/'))
 output dataCollectionRuleId string = dataCollectionRule.id
 output dataCollectionRuleName string = dataCollectionRule.name
