@@ -78,18 +78,10 @@
             "type": "Microsoft.Common.DropDown",
             "label": "What would you like to do?",
             "defaultValue": "Day2Operations",
-            "toolTip": "New deployment keeps the current end-to-end create flow. The other scenarios establish the Phase 6.1 brownfield operating model and are currently classified here while their dedicated actions are wired in.",
+            "toolTip": "This managed application is dedicated to day-2 operations for an existing Azure Virtual Desktop deployment.",
             "constraints": {
               "required": true,
               "allowedValues": [
-                {
-                  "label": "New AVD deployment",
-                  "value": "NewDeployment"
-                },
-                {
-                  "label": "Expand or update existing AVD deployment",
-                  "value": "ExpandExistingDeployment"
-                },
                 {
                   "label": "Day-2 operations for existing AVD deployment",
                   "value": "Day2Operations"
