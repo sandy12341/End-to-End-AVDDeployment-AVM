@@ -575,6 +575,11 @@ resource monitoredFslogixStorage 'Microsoft.Storage/storageAccounts@2025-01-01' 
   name: storageAccountName
 }
 
+resource monitoredFslogixFileService 'Microsoft.Storage/storageAccounts/fileServices@2025-01-01' existing = if (isNewDeployment && deployFSLogix && deployMonitoring) {
+  parent: monitoredFslogixStorage
+  name: 'default'
+}
+
 resource desktopAppGroup 'Microsoft.DesktopVirtualization/applicationGroups@2025-10-10' existing = if (isNewDeployment && publishDesktop) {
   name: desktopAppGroupName
 }
@@ -650,13 +655,21 @@ resource remoteAppGroupDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-0
 #disable-next-line use-recent-api-versions // The linter currently suggests 2016-09-01 for diagnosticSettings, which is older than the working API surface used here.
 resource fslogixStorageDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (isNewDeployment && deployFSLogix && deployMonitoring) {
   name: 'diag-fslogix-storage-to-law'
-  scope: monitoredFslogixStorage
+  scope: monitoredFslogixFileService
   properties: {
     workspaceId: monitoring!.outputs.workspaceId
     logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
-        categoryGroup: 'allLogs'
+        category: 'StorageRead'
+        enabled: true
+      }
+      {
+        category: 'StorageWrite'
+        enabled: true
+      }
+      {
+        category: 'StorageDelete'
         enabled: true
       }
     ]
