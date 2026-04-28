@@ -1,0 +1,637 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true,
+      "basics": {
+        "description": "Add session hosts to an existing Azure Virtual Desktop host pool without reopening the broader brownfield expansion wizard.",
+        "resourceGroup": {
+          "allowExisting": true
+        },
+        "subscription": {
+          "resourceProviders": [
+            "Microsoft.Compute",
+            "Microsoft.DesktopVirtualization",
+            "Microsoft.Insights",
+            "Microsoft.Network"
+          ]
+        },
+        "location": {
+          "resourceTypes": [
+            "Microsoft.Compute/galleries",
+            "Microsoft.Compute/virtualMachines",
+            "Microsoft.DesktopVirtualization/hostPools",
+            "Microsoft.Network/virtualNetworks"
+          ]
+        }
+      }
+    },
+    "basics": [
+      {
+        "name": "deploymentPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Deployment Prefix",
+        "defaultValue": "avd1",
+        "toolTip": "Naming prefix used for deployment metadata and any new session host resources.",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{1,6}$",
+          "validationMessage": "Use 1-6 lowercase letters or digits."
+        }
+      },
+      {
+        "name": "environment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Environment",
+        "defaultValue": "dev",
+        "constraints": {
+          "required": true,
+          "allowedValues": [
+            {
+              "label": "Development",
+              "value": "dev"
+            },
+            {
+              "label": "Test",
+              "value": "test"
+            },
+            {
+              "label": "Production",
+              "value": "prod"
+            }
+          ]
+        }
+      }
+    ],
+    "steps": [
+      {
+        "name": "brownfieldTarget",
+        "label": "Existing AVD target",
+        "elements": [
+          {
+            "name": "selectedHostPool",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing host pool",
+            "resourceType": "Microsoft.DesktopVirtualization/hostPools",
+            "toolTip": "Select the existing host pool that should receive additional session hosts.",
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "selectedHostPoolApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "scalingPlansApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/scalingPlans?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "appGroupsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "workspacesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/workspaces?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolDiagnosticsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "sessionHostsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '/sessionHosts?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "resourceGroupResourcesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/resources?api-version=2021-04-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolInspectionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Selected host pool: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'None'), '. Current session hosts discovered: ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '. Host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '.')]"
+            }
+          },
+          {
+            "name": "resourceCoverageSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Related workspaces discovered: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '. Related application groups discovered: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "instanceDetails",
+        "label": "Instance details",
+        "elements": [
+          {
+            "name": "sessionHostCount",
+            "type": "Microsoft.Common.Slider",
+            "label": "Session host count",
+            "min": 1,
+            "max": 10,
+            "defaultValue": 1,
+            "showStepMarkers": true
+          },
+          {
+            "name": "vmSize",
+            "type": "Microsoft.Compute.SizeSelector",
+            "label": "VM size",
+            "toolTip": "Select the Azure VM size for the additional session hosts.",
+            "recommendedSizes": [
+              "Standard_D2ads_v5",
+              "Standard_D4ads_v5",
+              "Standard_D8ads_v5",
+              "Standard_D16ads_v5",
+              "Standard_E2ads_v5",
+              "Standard_E4ads_v5",
+              "Standard_E8ads_v5"
+            ],
+            "constraints": {
+              "allowedSizes": []
+            },
+            "options": {
+              "hideDiskTypeFilter": false
+            },
+            "osPlatform": "Windows",
+            "imageReference": {
+              "publisher": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).publisher]",
+              "offer": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).offer]",
+              "sku": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).sku]",
+              "version": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).version]"
+            },
+            "count": "[steps('instanceDetails').sessionHostCount]"
+          },
+          {
+            "name": "imageSource",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Image source",
+            "defaultValue": "Marketplace",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Marketplace",
+                  "value": "Marketplace"
+                },
+                {
+                  "label": "Azure Compute Gallery",
+                  "value": "AzureComputeGallery"
+                }
+              ]
+            }
+          },
+          {
+            "name": "avdCompatibleMarketplaceOs",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Compatible OS",
+            "toolTip": "Curated Azure Virtual Desktop-supported operating systems based on Microsoft Learn prerequisites.",
+            "defaultValue": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}",
+            "filter": true,
+            "visible": "[equals(steps('instanceDetails').imageSource, 'Marketplace')]",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'Marketplace')]",
+              "allowedValues": [
+                {
+                  "label": "Windows 11 Enterprise multi-session + Microsoft 365 Apps",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 11 Enterprise multi-session",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"windows-11\",\"sku\":\"win11-24h2-avd\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 11 Enterprise",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"windows-11\",\"sku\":\"win11-24h2-ent\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 10 Enterprise multi-session + Microsoft 365 Apps",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win10-22h2-avd-m365\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 10 Enterprise multi-session",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"Windows-10\",\"sku\":\"win10-22h2-avd\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows 10 Enterprise",
+                  "value": "{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"Windows-10\",\"sku\":\"win10-22h2-ent\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2025",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"WindowsServer\",\"sku\":\"2025-datacenter\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2022",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"windowsserver2022\",\"sku\":\"2022-datacenter\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2019",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"WindowsServer\",\"sku\":\"2019-Datacenter\",\"version\":\"latest\"}"
+                },
+                {
+                  "label": "Windows Server 2016",
+                  "value": "{\"publisher\":\"MicrosoftWindowsServer\",\"offer\":\"WindowsServer\",\"sku\":\"2016-Datacenter\",\"version\":\"latest\"}"
+                }
+              ]
+            }
+          },
+          {
+            "name": "galleryPicker",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Azure Compute Gallery",
+            "resourceType": "Microsoft.Compute/galleries",
+            "visible": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+            "toolTip": "Select an existing Azure Compute Gallery for the replacement session host image.",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]"
+            },
+            "options": {}
+          },
+          {
+            "name": "imageDefinitionsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), not(empty(steps('instanceDetails').galleryPicker.id)))), concat(steps('instanceDetails').galleryPicker.id, '/images?api-version=2022-08-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "galleryImageDefinitionName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Image definition",
+            "placeholder": "Select an image definition...",
+            "visible": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+              "allowedValues": "[map(if(contains(steps('instanceDetails').imageDefinitionsApi, 'value'), steps('instanceDetails').imageDefinitionsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]"
+            }
+          },
+          {
+            "name": "imageVersionsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), and(not(empty(steps('instanceDetails').galleryPicker.id)), not(empty(steps('instanceDetails').galleryImageDefinitionName))))), concat(steps('instanceDetails').galleryPicker.id, '/images/', steps('instanceDetails').galleryImageDefinitionName, '/versions?api-version=2022-08-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "galleryImageVersion",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Gallery image version",
+            "placeholder": "Select a version...",
+            "visible": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+            "constraints": {
+              "required": "[equals(steps('instanceDetails').imageSource, 'AzureComputeGallery')]",
+              "allowedValues": "[map(if(contains(steps('instanceDetails').imageVersionsApi, 'value'), steps('instanceDetails').imageVersionsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]"
+            }
+          },
+          {
+            "name": "sessionHostSecurityType",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Session host security type",
+            "defaultValue": "Auto",
+            "toolTip": "Auto uses Trusted Launch for Azure Compute Gallery images and Standard for Marketplace images.",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Auto",
+                  "value": "Auto"
+                },
+                {
+                  "label": "Standard",
+                  "value": "Standard"
+                },
+                {
+                  "label": "Trusted Launch",
+                  "value": "TrustedLaunch"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "networking",
+        "label": "Networking",
+        "elements": [
+          {
+            "name": "existingVnet",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing virtual network",
+            "resourceType": "Microsoft.Network/virtualNetworks",
+            "toolTip": "Select the VNet where the new session hosts will be deployed.",
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "subnetsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('networking').existingVnet, 'id'), not(empty(steps('networking').existingVnet.id))), concat(steps('networking').existingVnet.id, '/subnets?api-version=2023-09-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "sessionHostSubnetName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Session host subnet",
+            "placeholder": "Select a subnet...",
+            "toolTip": "Select the subnet where the new session host VMs should be deployed.",
+            "constraints": {
+              "required": true,
+              "allowedValues": "[map(if(contains(steps('networking').subnetsApi, 'value'), steps('networking').subnetsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, ' (', coalesce(item.properties.addressPrefix, ''), ')\",\"value\":\"', item.name, '\"}')))]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "access",
+        "label": "Local admin",
+        "elements": [
+          {
+            "name": "adminUsername",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Local admin username",
+            "defaultValue": "avdadmin",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "adminPassword",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+              "password": "Local admin password",
+              "confirmPassword": "Confirm local admin password"
+            },
+            "constraints": {
+              "required": true,
+              "regex": "^(?=.{12,})(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^A-Za-z0-9]).*$",
+              "validationMessage": "Use at least 12 characters including upper, lower, number, and symbol."
+            }
+          }
+        ]
+      },
+      {
+        "name": "authentication",
+        "label": "Authentication",
+        "elements": [
+          {
+            "name": "authenticationType",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Authentication type",
+            "defaultValue": "EntraID",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "EntraID",
+                  "value": "EntraID"
+                },
+                {
+                  "label": "HybridJoin",
+                  "value": "HybridJoin"
+                }
+              ]
+            }
+          },
+          {
+            "name": "domainFqdn",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Domain FQDN",
+            "defaultValue": "",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+              "regex": "^(?=.{3,255}$)(?!-)(?:[A-Za-z0-9-]{1,63}\\.)+[A-Za-z]{2,63}$",
+              "validationMessage": "Use a valid domain FQDN such as cloudaigeek.com."
+            }
+          },
+          {
+            "name": "domainJoinUsername",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Domain join service account",
+            "defaultValue": "",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+              "regex": "^([^\\\\\\s]+\\\\[^\\\\\\s]+|[^@\\s]+@[^@\\s]+|[^\\s]+)$",
+              "validationMessage": "Use DOMAIN\\username or username@domain. Plain username is allowed and will be normalized automatically."
+            }
+          },
+          {
+            "name": "domainJoinPassword",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+              "password": "Domain join service account password",
+              "confirmPassword": "Confirm domain join service account password"
+            },
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": "[equals(steps('authentication').authenticationType, 'HybridJoin')]"
+            }
+          },
+          {
+            "name": "domainJoinOuPath",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Optional OU path",
+            "defaultValue": "",
+            "toolTip": "Example: OU=AVD,DC=contoso,DC=com",
+            "visible": "[equals(steps('authentication').authenticationType, 'HybridJoin')]",
+            "constraints": {
+              "required": false,
+              "regex": "^$|^(?=.{1,1024}$)(?:OU=[^,=]+,)*(?:DC=[^,=]+,)*DC=[^,=]+$",
+              "validationMessage": "Use distinguished name format such as OU=AVD,DC=contoso,DC=com (or leave blank)."
+            }
+          }
+        ]
+      },
+      {
+        "name": "review",
+        "label": "Review",
+        "elements": [
+          {
+            "name": "reviewTargetSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Target host pool: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), ' in resource group ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '.')]"
+            }
+          },
+          {
+            "name": "reviewHostShapeSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Requested expansion: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) using VM size ', steps('instanceDetails').vmSize, ' and image source ', steps('instanceDetails').imageSource, '.')]"
+            }
+          },
+          {
+            "name": "reviewNetworkSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Target VNet: ', if(contains(steps('networking').existingVnet, 'name'), steps('networking').existingVnet.name, ''), '; session host subnet: ', steps('networking').sessionHostSubnetName, '.')]"
+            }
+          },
+          {
+            "name": "reviewAuthSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Authentication path: ', steps('authentication').authenticationType, if(equals(steps('authentication').authenticationType, 'HybridJoin'), concat(' using domain ', steps('authentication').domainFqdn), '. Entra join path requires no domain join credentials.'))]"
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "applicationResourceName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'avd-add-session-hosts')]",
+      "location": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'location'), steps('brownfieldTarget').selectedHostPool.location, location())]",
+      "deploymentPrefix": "[basics('deploymentPrefix')]",
+      "deploymentScenario": "ExpandExistingDeployment",
+      "expandOperation": "AddSessionHosts",
+      "day2Operation": "",
+      "networkMode": "UseExistingVnet",
+      "existingVnetName": "[if(contains(steps('networking').existingVnet, 'name'), steps('networking').existingVnet.name, '')]",
+      "existingVnetResourceGroupName": "[if(contains(steps('networking').existingVnet, 'id'), last(take(split(steps('networking').existingVnet.id, '/'), 5)), '')]",
+      "newVnetName": "",
+      "newVnetAddressPrefix": "",
+      "newSessionHostSubnetName": "",
+      "newSessionHostSubnetPrefix": "",
+      "newPrivateEndpointSubnetName": "",
+      "newPrivateEndpointSubnetPrefix": "",
+      "sessionHostSubnetName": "[steps('networking').sessionHostSubnetName]",
+      "privateEndpointSubnetName": "",
+      "hubVnetResourceId": "",
+      "environment": "[basics('environment')]",
+      "sessionHostCount": "[steps('instanceDetails').sessionHostCount]",
+      "vmSize": "[steps('instanceDetails').vmSize]",
+      "imageSource": "[steps('instanceDetails').imageSource]",
+      "sessionHostSecurityType": "[steps('instanceDetails').sessionHostSecurityType]",
+      "marketplaceImagePublisher": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).publisher]",
+      "marketplaceImageOffer": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).offer]",
+      "marketplaceImageSku": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).sku]",
+      "marketplaceImageVersion": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).version]",
+      "galleryImageSubscriptionId": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), not(empty(steps('instanceDetails').galleryPicker.id)))), last(take(split(steps('instanceDetails').galleryPicker.id, '/'), 3)), subscription().subscriptionId)]",
+      "galleryImageResourceGroupName": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), and(contains(steps('instanceDetails').galleryPicker, 'id'), not(empty(steps('instanceDetails').galleryPicker.id)))), last(take(split(steps('instanceDetails').galleryPicker.id, '/'), 5)), '')]",
+      "galleryName": "[if(and(equals(steps('instanceDetails').imageSource, 'AzureComputeGallery'), contains(steps('instanceDetails').galleryPicker, 'name')), steps('instanceDetails').galleryPicker.name, '')]",
+      "galleryImageDefinitionName": "[steps('instanceDetails').galleryImageDefinitionName]",
+      "galleryImageVersion": "[steps('instanceDetails').galleryImageVersion]",
+      "avdMode": "",
+      "hostPoolType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Pooled')]",
+      "hostPoolName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, '')]",
+      "existingHostPoolResourceGroupName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '')]",
+      "existingWorkspaceNames": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)), (workspace) => workspace.name)]",
+      "relatedApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)), (appGroup) => appGroup.name)]",
+      "relatedDesktopApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop'))), (appGroup) => appGroup.name)]",
+      "relatedRemoteAppApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp'))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedLoadBalancerType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'loadBalancerType')), steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, '')]",
+      "brownfieldDetectedPreferredAppGroupType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType')), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, '')]",
+      "brownfieldDetectedAuthenticationType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'customRdpProperty')), if(contains(string(steps('brownfieldTarget').selectedHostPoolApi.properties.customRdpProperty), 'targetisaadjoined:i:1'), 'EntraID', 'HybridJoin'), 'Unknown')]",
+      "brownfieldDetectedHostPoolDiagnosticSettingNames": "[map(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')), (setting) => setting.name)]",
+      "brownfieldDetectedWorkspacesWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(workspace.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0)), (workspace) => workspace.name)]",
+      "brownfieldDetectedApplicationGroupsWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(appGroup.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedScalingPlanNames": "[map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id)), (plan) => plan.name)]",
+      "brownfieldDetectedSessionHostVmNames": "[map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.')))]",
+      "brownfieldDetectedDesktopAssignmentCount": 0,
+      "brownfieldDetectedRemoteAppAssignmentCount": 0,
+      "brownfieldDetectedDirectUserAssignmentCount": 0,
+      "brownfieldDetectedGroupAssignmentCount": 0,
+      "brownfieldDetectedFslogixStorageAccountName": "",
+      "brownfieldDetectedFslogixStorageAccountResourceId": "",
+      "brownfieldDetectedFslogixPublicNetworkAccess": "NotAssessed",
+      "brownfieldDetectedFslogixPrivateEndpointCount": 0,
+      "brownfieldDetectedFslogixPrivateDnsLinkState": "NotAssessed",
+      "brownfieldDetectedNetworkVnetName": "",
+      "adminUsername": "[steps('access').adminUsername]",
+      "adminPassword": "[steps('access').adminPassword]",
+      "authenticationType": "[steps('authentication').authenticationType]",
+      "domainFqdn": "[if(equals(steps('authentication').authenticationType, 'HybridJoin'), steps('authentication').domainFqdn, '')]",
+      "domainJoinUsername": "[if(equals(steps('authentication').authenticationType, 'HybridJoin'), steps('authentication').domainJoinUsername, '')]",
+      "domainJoinPassword": "[if(equals(steps('authentication').authenticationType, 'HybridJoin'), steps('authentication').domainJoinPassword, '')]",
+      "domainJoinOuPath": "[if(equals(steps('authentication').authenticationType, 'HybridJoin'), steps('authentication').domainJoinOuPath, '')]",
+      "deployFSLogix": false,
+      "storageAccountName": "",
+      "deployFSLogixPrivateEndpoint": false,
+      "deployMonitoring": false,
+      "brownfieldMonitoringWorkspaceMode": "CreateNew",
+      "brownfieldMonitoringScope": "ControlPlaneOnly",
+      "brownfieldMonitoringPreset": "Standard",
+      "brownfieldMonitoringWorkspaceName": "",
+      "brownfieldMonitoringExistingWorkspaceResourceId": "",
+      "brownfieldMonitoringRetentionDays": 30,
+      "brownfieldMonitoringSessionHostVmResourceGroupName": "",
+      "brownfieldMonitoringSessionHostVmNames": [],
+      "scalingPlanName": "",
+      "scalingPlanFriendlyName": "",
+      "scalingPlanDescription": "",
+      "scalingPlanTimeZone": "UTC",
+      "scalingPlanExclusionTag": "",
+      "weekdayRampUpStartTime": "06:00",
+      "weekdayPeakStartTime": "09:00",
+      "weekdayRampDownStartTime": "17:00",
+      "weekdayOffPeakStartTime": "20:00",
+      "weekendRampUpStartTime": "08:00",
+      "weekendPeakStartTime": "10:00",
+      "weekendRampDownStartTime": "15:00",
+      "weekendOffPeakStartTime": "18:00",
+      "rampUpLoadBalancingAlgorithm": "BreadthFirst",
+      "peakLoadBalancingAlgorithm": "BreadthFirst",
+      "rampDownLoadBalancingAlgorithm": "DepthFirst",
+      "offPeakLoadBalancingAlgorithm": "DepthFirst",
+      "minimumHostsPct": 20,
+      "capacityThresholdPct": 75,
+      "rampDownWaitTimeMinutes": 30,
+      "rampDownStopHostsWhen": "ZeroSessions",
+      "rampDownForceLogoffUsers": false,
+      "rampDownNotificationMessage": "This session host will be stopped by the Azure Virtual Desktop scaling plan.",
+      "avdUserObjectIds": "",
+      "desktopAccessAssignments": [],
+      "remoteAppAccessAssignments": [],
+      "brownfieldFslogixStorageAccountResourceId": "",
+      "brownfieldFslogixPrivateDnsZoneMode": "CreateNew",
+      "remoteApps": []
+    }
+  }
+}
