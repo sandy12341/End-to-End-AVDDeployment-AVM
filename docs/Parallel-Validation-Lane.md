@@ -22,10 +22,10 @@ This lane is now explicitly the internal validation path. The public customer de
 - Internal engineering path: direct template deployment from `infra/main.bicep` and `infra/azuredeploy.json`
 - Parity requirement: both entrypoints must resolve to the same shared solution logic
 
-Current split-entrypoint model:
-- Deploy New Environment: raw-template validation lane plus optional managed-app greenfield definition
-- Manage Existing AVD Deployment: managed-app existing-environment definition
-- Launch Day-2 Operations: managed-app day-2 definition
+Current entrypoint model:
+- Internal validation lane: raw-template deployment button backed by `infra/createUiDefinition.validation.v2.json`
+- Preferred managed-app operator definitions: deploy new environment, add session hosts, configure scaling plan, align monitoring posture, and generate operational summary
+- Retained compatibility wrappers: manage existing AVD deployment and launch day-2 operations
 
 ## Recommended Branch
 
@@ -54,7 +54,7 @@ Reviewed and intentionally retained:
 Use a branch-specific Deploy-to-Azure link only for internal validation after this repo is published to GitHub.
 
 ```text
-https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2F<owner>%2FE2EAVDDeployment-AVM%2F<branch>%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2F<owner>%2FE2EAVDDeployment-AVM%2F<branch>%2Finfra%2FcreateUiDefinition.json
+https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2F<owner>%2FE2EAVDDeployment-AVM%2F<branch>%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2F<owner>%2FE2EAVDDeployment-AVM%2F<branch>%2Finfra%2FcreateUiDefinition.validation.v2.json
 ```
 
 ## Managed App Validation Lane
@@ -64,6 +64,10 @@ Recommended definition settings for the AVM lane:
 - Definition resource group: `rg-avd-managedapp-def-avm`
 - Definition names:
 - `avd-new-environment-avm`
+- `avd-add-session-hosts-avm`
+- `avd-configure-scaling-avm`
+- `avd-align-monitoring-avm`
+- `avd-operational-summary-avm`
 - `avd-manage-existing-avm`
 - `avd-day2-operations-avm`
 - Package URIs: separate from the stable lane and versioned independently
@@ -72,10 +76,14 @@ Recommended definition settings for the AVM lane:
 
 | Entry point | Launch surface | Artifact | Primary scenario | Current status | Required next validation |
 |---|---|---|---|---|---|
-| Deploy New Environment | Raw-template validation button | `infra/createUiDefinition.validation.v2.json` | greenfield deployment and networking validation | ready for portal validation | portal launch, review screen, one end-to-end deployment |
-| Deploy New Environment | Managed app definition | `infra/managedapp/dist/app-new.zip` | managed-app greenfield deployment | definition published in `rg-avd-managedapp-def-avm` and republished with dedicated new-environment wrapper | portal launch, review screen, one end-to-end deployment |
-| Manage Existing AVD Deployment | Managed app definition | `infra/managedapp/dist/app-existing.zip` | brownfield expansion and alignment | definition published in `rg-avd-managedapp-def-avm` | portal launch, one add-session-hosts or monitoring validation |
-| Launch Day-2 Operations | Managed app definition | `infra/managedapp/dist/app-day2.zip` | day-2 operator workflows | definition published in `rg-avd-managedapp-def-avm` | portal launch, one pooled scaling-plan validation |
+| Deploy New Environment | Raw-template validation button | `infra/createUiDefinition.validation.v2.json` | greenfield deployment and networking validation | Build-ready; portal validation pending | portal launch, review screen, one end-to-end deployment |
+| Deploy New Environment | Managed app definition | `infra/managedapp/dist/app-new.zip` | managed-app greenfield deployment | Package built and definition published; portal validation pending | portal launch, review screen, one end-to-end deployment |
+| Add Session Hosts | Managed app definition | `infra/managedapp/dist/app-addhosts.zip` | brownfield host-pool expansion | Package built and definition published; portal validation pending | portal launch, stepper review, one brownfield host-add validation |
+| Configure Scaling Plan | Managed app definition | `infra/managedapp/dist/app-scaling.zip` | pooled host-pool scaling alignment | Package built and definition published; portal validation pending | portal launch, stepper review, one pooled scaling-plan validation |
+| Align Monitoring Posture | Managed app definition | `infra/managedapp/dist/app-monitoring.zip` | brownfield control-plane and guest-monitoring alignment | Package built and definition published; portal validation pending | portal launch, stepper review, one monitoring-alignment validation |
+| Generate Operational Summary | Managed app definition | `infra/managedapp/dist/app-summary.zip` | read-only brownfield operational posture review | Package built and definition published; portal validation pending | portal launch, stepper review, one summary validation |
+| Manage Existing AVD Deployment | Managed app definition | `infra/managedapp/dist/app-existing.zip` | broad brownfield wrapper retained for compatibility | Package built and definition published; compatibility validation pending | portal launch, confirm legacy wrapper is still intentionally available |
+| Launch Day-2 Operations | Managed app definition | `infra/managedapp/dist/app-day2.zip` | broad day-2 wrapper retained for compatibility | Package built and definition published; compatibility validation pending | portal launch, confirm legacy wrapper is still intentionally available |
 
 ## Local Validation Evidence
 
@@ -83,10 +91,10 @@ Recommended definition settings for the AVM lane:
 - `infra/managedapp/createUiDefinition.day2.json` parses as valid JSON
 - `infra/managedapp/createUiDefinition.new.json` created as the dedicated greenfield wrapper
 - `pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1 -SkipDirectTemplate` succeeds
-- `infra/managedapp/dist/app.zip`, `infra/managedapp/dist/app-new.zip`, `infra/managedapp/dist/app-existing.zip`, and `infra/managedapp/dist/app-day2.zip` are emitted
+- `infra/managedapp/dist/app-new.zip`, `infra/managedapp/dist/app-existing.zip`, `infra/managedapp/dist/app-day2.zip`, `infra/managedapp/dist/app-addhosts.zip`, `infra/managedapp/dist/app-scaling.zip`, `infra/managedapp/dist/app-monitoring.zip`, and `infra/managedapp/dist/app-summary.zip` are emitted
 - `infra/managedapp/deployDefinitions.bicep` compiles successfully through the artifact build
-- GitHub release `managedapp-packages-20260425` hosts `app-new.zip`, `app-existing.zip`, and `app-day2.zip`
-- Managed application definitions `avd-new-environment-avm`, `avd-manage-existing-avm`, and `avd-day2-operations-avm` are published in `rg-avd-managedapp-def-avm`
+- Azure Blob package hosting is used for publication instead of the earlier GitHub release flow
+- Managed application definitions `avd-new-environment-avm`, `avd-add-session-hosts-avm`, `avd-configure-scaling-avm`, `avd-align-monitoring-avm`, `avd-operational-summary-avm`, `avd-manage-existing-avm`, and `avd-day2-operations-avm` are published in `rg-avd-managedapp-def-avm`
 
 ## Validation Resource Groups
 

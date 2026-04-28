@@ -75,18 +75,11 @@
         "elements": [
           {
             "name": "deploymentScenario",
-            "type": "Microsoft.Common.DropDown",
-            "label": "What would you like to do?",
+            "type": "Microsoft.Common.TextBlock",
             "defaultValue": "Day2Operations",
-            "toolTip": "This managed application is dedicated to day-2 operations for an existing Azure Virtual Desktop deployment.",
-            "constraints": {
-              "required": true,
-              "allowedValues": [
-                {
-                  "label": "Day-2 operations for existing AVD deployment",
-                  "value": "Day2Operations"
-                }
-              ]
+            "visible": true,
+            "options": {
+              "text": "This wizard is dedicated to day-2 operations for an existing Azure Virtual Desktop deployment. The action scope is fixed, so no scenario selection is required."
             }
           },
           {
@@ -176,6 +169,22 @@
             }
           },
           {
+            "name": "resourceGroupResourcesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/resources?api-version=2021-04-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "resourceGroupRoleAssignmentsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id)))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
             "name": "hostPoolInspectionSummary",
             "type": "Microsoft.Common.TextBlock",
             "visible": "[and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType'))]",
@@ -188,7 +197,7 @@
             "type": "Microsoft.Common.TextBlock",
             "visible": "[or(contains(steps('brownfieldTarget').appGroupsApi, 'value'), contains(steps('brownfieldTarget').workspacesApi, 'value'))]",
             "options": {
-              "text": "[concat('Discovered related app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)))), '. Discovered related workspaces: ', string(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)))), '.')]"
+              "text": "[concat('Related app groups discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Related workspaces discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '.')]"
             }
           },
           {
@@ -196,7 +205,7 @@
             "type": "Microsoft.Common.TextBlock",
             "visible": "[contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value')]",
             "options": {
-              "text": "[if(greater(length(steps('brownfieldTarget').hostPoolDiagnosticsApi.value), 0), 'Existing host pool diagnostic settings detected for the selected host pool.', 'No host pool diagnostic settings detected for the selected host pool.')]"
+              "text": "[concat('Host pool diagnostic settings discovered: ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '.')]"
             }
           },
           {
@@ -204,7 +213,7 @@
             "type": "Microsoft.Common.TextBlock",
             "visible": "[contains(steps('brownfieldTarget').scalingPlansApi, 'value')]",
             "options": {
-              "text": "[if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'Existing scaling plan attachment detected for the selected host pool in this resource group.', 'No existing scaling plan attachment detected for the selected host pool in this resource group.')]"
+              "text": "[concat('Scaling plans discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')))), '.')]"
             }
           }
         ]
@@ -597,7 +606,7 @@
             "name": "accessAssignmentSummary",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "[concat('Apply assignments across discovered desktop app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop')))), '. Apply assignments across discovered RemoteApp app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp')))), '.')]"
+              "text": "[concat('Application groups discovered in scope for assignment review: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Detailed assignment changes are configured below.')]"
             }
           },
           {
@@ -862,16 +871,24 @@
       },
       {
         "name": "fslogixSettings",
-        "label": "FSLogix private connectivity",
-        "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity'))]",
+        "label": "FSLogix and network assessment",
+        "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), or(equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary')))]",
         "elements": [
+          {
+            "name": "fslogixSettingsNote",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary')]",
+            "options": {
+              "text": "Optional but recommended for the summary report: select the FSLogix storage account, the session-host VNet, and optionally the private DNS zone to assess storage exposure and private connectivity posture."
+            }
+          },
           {
             "name": "fslogixStorageAccount",
             "type": "Microsoft.Solutions.ResourceSelector",
             "label": "FSLogix storage account",
             "resourceType": "Microsoft.Storage/storageAccounts",
             "constraints": {
-              "required": true
+              "required": "[equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')]"
             },
             "options": {
               "filter": {
@@ -901,12 +918,34 @@
             "label": "Existing virtual network",
             "resourceType": "Microsoft.Network/virtualNetworks",
             "constraints": {
-              "required": true
+              "required": "[equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')]"
             },
             "options": {
               "filter": {
                 "subscription": "onBasics"
               }
+            }
+          },
+          {
+            "name": "privateDnsZone",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Private DNS zone (optional for summary)",
+            "resourceType": "Microsoft.Network/privateDnsZones",
+            "constraints": {
+              "required": false
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "privateDnsZoneLinksApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').privateDnsZone, 'id'), not(empty(steps('fslogixSettings').privateDnsZone.id))), concat(steps('fslogixSettings').privateDnsZone.id, '/virtualNetworkLinks?api-version=2024-06-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
             }
           },
           {
@@ -922,8 +961,9 @@
             "type": "Microsoft.Common.DropDown",
             "label": "Private endpoint subnet",
             "placeholder": "Select a subnet...",
+            "visible": "[equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')]",
             "constraints": {
-              "required": true,
+              "required": "[equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')]",
               "allowedValues": "[map(if(contains(steps('fslogixSettings').subnetsApi, 'value'), steps('fslogixSettings').subnetsApi.value, take(split('x', ','), 0)), (item) => parse(concat('{\"label\":\"', item.name, ' (', coalesce(item.properties.addressPrefix, ''), ')\",\"value\":\"', item.name, '\"}')))]"
             }
           },
@@ -932,8 +972,9 @@
             "type": "Microsoft.Common.DropDown",
             "label": "Private DNS mode",
             "defaultValue": "CreateNew",
+            "visible": "[equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')]",
             "constraints": {
-              "required": true,
+              "required": "[equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')]",
               "allowedValues": [
                 {
                   "label": "Create and link private DNS zone",
@@ -951,7 +992,7 @@
             "type": "Microsoft.Common.TextBlock",
             "visible": "[contains(steps('fslogixSettings').fslogixStorageApi, 'properties')]",
             "options": {
-              "text": "[concat('Public network access: ', steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, '. Private endpoint connections detected: ', string(length(if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value, take(split('x', ','), 0)))), '. Reconciliation will create the file private endpoint in subnet ', steps('fslogixSettings').privateEndpointSubnetName, '.')]"
+              "text": "[concat('Public network access: ', if(contains(steps('fslogixSettings').fslogixStorageApi, 'properties'), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'Unknown'), '. Private endpoint connections detected: ', string(length(if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value, parse('[]')))), '.')]"
             }
           }
         ]
@@ -965,14 +1006,86 @@
             "name": "brownfieldReviewSummary",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AddSessionHosts')), concat('Action: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) to existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing host pool, workspace, app groups, storage, and scaling plan resources are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. ', if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), concat('Full monitoring posture with the ', steps('monitoringSettings').monitoringPreset, ' preset will target ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), ' discovered session host(s) and use VM resource group ', steps('monitoringSettings').sessionHostVmResourceGroupName, '. Workspace target: '), 'Control-plane diagnostics will target '), if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), concat('a new workspace named ', steps('monitoringSettings').monitoringWorkspaceName), 'the selected existing Log Analytics workspace'), '.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline')), concat('Action: stage ', string(steps('instanceDetails').sessionHostCount), ' replacement session host(s) with the requested VM/image baseline for host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing hosts are not removed automatically.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), concat('Action: ', if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'update the existing scaling plan attachment', 'create and attach a scaling plan'), ' for pooled host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. ', if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), concat('Full monitoring posture with the ', steps('monitoringSettings').monitoringPreset, ' preset will target ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), ' discovered session host(s) and use VM resource group ', steps('monitoringSettings').sessionHostVmResourceGroupName, '. '), ''), 'Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), 'Action: update access assignments across the discovered application groups.', if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), 'Action: reconcile FSLogix storage private connectivity by creating a private endpoint and applying the selected DNS mode.', 'Action: generate a no-change operational summary for the selected brownfield target.'))))))]"
+              "text": "[concat('Action summary: scenario ', steps('deploymentScenario').deploymentScenario, '; selected host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'Unknown'), '; day-2 operation ', if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), steps('day2Operation').day2Operation, 'NotApplicable'), '.')]"
             }
           },
           {
             "name": "brownfieldReviewDetails",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "[concat('Target host pool resource group: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '. Detected host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '. Related app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)))), '. Related workspaces: ', string(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)))), '.')]"
+              "text": "[concat('Target host pool resource group: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), 'Unknown'), '. Detected host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '. Application groups discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Workspaces discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryExecutive",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Executive summary preview: selected host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'Unknown'), '; host pool diagnostics settings discovered ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '; scaling plans discovered in scope ', string(length(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')))), '; session hosts discovered ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '. This action is read-only and emits a structured best-practice report.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryTargetSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Target summary: location ', if(contains(steps('brownfieldTarget').selectedHostPool, 'location'), steps('brownfieldTarget').selectedHostPool.location, 'Unknown'), '; host pool type ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '; load balancer ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'loadBalancerType')), steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, 'Unknown'), '; preferred app group ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType')), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, 'Unknown'), '.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryResourcesSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Related resources preview: application groups discovered in scope ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '; workspaces discovered in scope ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '; session hosts discovered ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryGapSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Gap register preview: host pool diagnostics settings discovered ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '; scaling plans discovered in scope ', string(length(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')))), '; related resources and best-practice gaps will be returned in the deployment outputs.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryMonitoringExpandedSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Monitoring coverage preview: host pool diagnostic settings discovered ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '; workspaces discovered in scope ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '; application groups discovered in scope ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Detailed diagnostics coverage is returned in the deployment outputs.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryAccessSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Access posture preview: resource-group role assignments discovered in scope ', string(length(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')))), '; related application groups discovered in scope ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Detailed assignment posture is returned in the deployment outputs.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryFslogixSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[if(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), concat('FSLogix posture preview: storage account ', steps('fslogixSettings').fslogixStorageAccount.name, '; public network access ', if(contains(steps('fslogixSettings').fslogixStorageApi, 'properties'), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'Unknown'), '; private endpoint connections discovered ', string(length(if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value, parse('[]')))), '. Detailed FSLogix and private DNS posture is returned in the deployment outputs.'), 'FSLogix posture preview: not assessed because no storage account was provided for the summary workflow.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryFollowUpSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "[concat('Recommended follow-up: review the deployment outputs for the formal gap register and recommendation set. If host pool diagnostics are missing, consider AlignMonitoringPosture. If the host pool is pooled and no scaling plan is attached, consider ConfigureScalingPlan.')]"
+            }
+          },
+          {
+            "name": "operationalSummaryCoverageSection",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
+            "options": {
+              "text": "Assessment coverage: this report now assesses host pool properties, related application groups and workspaces, host pool diagnostic settings, derived workspace and application-group diagnostics coverage in the host pool resource group, scaling plan attachments, registered session hosts, derived application-group role assignments in the host pool resource group, and FSLogix private-connectivity posture when a storage account is provided. It still does not assess guest AMA or DCR coverage, NSG rules, routes, firewalls, or guest OS drift."
             }
           }
         ]
@@ -1808,6 +1921,24 @@
       "relatedApplicationGroupNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)), (appGroup) => appGroup.name))]",
       "relatedDesktopApplicationGroupNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop'))), (appGroup) => appGroup.name))]",
       "relatedRemoteAppApplicationGroupNames": "[if(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment'), parse('[]'), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp'))), (appGroup) => appGroup.name))]",
+      "brownfieldDetectedLoadBalancerType": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'loadBalancerType'))), steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, '')]",
+      "brownfieldDetectedPreferredAppGroupType": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType'))), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, '')]",
+      "brownfieldDetectedAuthenticationType": "[if(and(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'customRdpProperty'))), if(contains(string(steps('brownfieldTarget').selectedHostPoolApi.properties.customRdpProperty), 'targetisaadjoined:i:1'), 'EntraID', 'HybridJoin'), 'Unknown')]",
+      "brownfieldDetectedHostPoolDiagnosticSettingNames": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), map(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')), (setting) => setting.name), parse('[]'))]",
+      "brownfieldDetectedWorkspacesWithDiagnostics": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(workspace.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0)), (workspace) => workspace.name), parse('[]'))]",
+      "brownfieldDetectedApplicationGroupsWithDiagnostics": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(appGroup.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0))), (appGroup) => appGroup.name), parse('[]'))]",
+      "brownfieldDetectedScalingPlanNames": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id)), (plan) => plan.name), parse('[]'))]",
+      "brownfieldDetectedSessionHostVmNames": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.'))), parse('[]'))]",
+      "brownfieldDetectedDesktopAssignmentCount": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), length(filter(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), (assignment) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop'), contains(string(assignment.properties.scope), appGroup.id)))), 0))), 0)]",
+      "brownfieldDetectedRemoteAppAssignmentCount": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), length(filter(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), (assignment) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp'), contains(string(assignment.properties.scope), appGroup.id)))), 0))), 0)]",
+      "brownfieldDetectedDirectUserAssignmentCount": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), length(filter(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), (assignment) => and(equals(assignment.properties.principalType, 'User'), greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(assignment.properties.scope), appGroup.id)))), 0)))), 0)]",
+      "brownfieldDetectedGroupAssignmentCount": "[if(not(equals(steps('deploymentScenario').deploymentScenario, 'NewDeployment')), length(filter(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), (assignment) => and(equals(assignment.properties.principalType, 'Group'), greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(assignment.properties.scope), appGroup.id)))), 0)))), 0)]",
+      "brownfieldDetectedFslogixStorageAccountName": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), contains(steps('fslogixSettings').fslogixStorageAccount, 'name')), steps('fslogixSettings').fslogixStorageAccount.name, '')]",
+      "brownfieldDetectedFslogixStorageAccountResourceId": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), contains(steps('fslogixSettings').fslogixStorageAccount, 'id')), steps('fslogixSettings').fslogixStorageAccount.id, '')]",
+      "brownfieldDetectedFslogixPublicNetworkAccess": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), contains(steps('fslogixSettings').fslogixStorageApi, 'properties')), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'NotAssessed')]",
+      "brownfieldDetectedFslogixPrivateEndpointCount": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value')), length(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value), 0)]",
+      "brownfieldDetectedFslogixPrivateDnsLinkState": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), contains(steps('fslogixSettings').privateDnsZone, 'id'), contains(steps('fslogixSettings').existingVnet, 'id')), if(greater(length(filter(if(contains(steps('fslogixSettings').privateDnsZoneLinksApi, 'value'), steps('fslogixSettings').privateDnsZoneLinksApi.value, parse('[]')), (link) => and(contains(link, 'properties'), contains(link.properties, 'virtualNetwork'), contains(link.properties.virtualNetwork, 'id'), equals(link.properties.virtualNetwork.id, steps('fslogixSettings').existingVnet.id)))), 0), 'Linked', 'Missing'), 'NotAssessed')]",
+      "brownfieldDetectedNetworkVnetName": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), contains(steps('fslogixSettings').existingVnet, 'name')), steps('fslogixSettings').existingVnet.name, '')]",
       "adminUsername": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('access').adminUsername)]",
       "adminPassword": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), '', steps('access').adminPassword)]",
       "authenticationType": "[if(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), 'EntraID', steps('authentication').authenticationType)]",

@@ -1,0 +1,409 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true,
+      "basics": {
+        "description": "Align monitoring posture for an existing Azure Virtual Desktop host pool without reopening the broader day-2 operations wizard.",
+        "resourceGroup": {
+          "allowExisting": true
+        },
+        "subscription": {
+          "resourceProviders": [
+            "Microsoft.Compute",
+            "Microsoft.DesktopVirtualization",
+            "Microsoft.Insights",
+            "Microsoft.Network",
+            "Microsoft.OperationalInsights",
+            "Microsoft.Storage"
+          ]
+        },
+        "location": {
+          "resourceTypes": [
+            "Microsoft.Compute/virtualMachines",
+            "Microsoft.DesktopVirtualization/hostPools",
+            "Microsoft.OperationalInsights/workspaces"
+          ]
+        }
+      }
+    },
+    "basics": [
+      {
+        "name": "deploymentPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Deployment Prefix",
+        "defaultValue": "avd1",
+        "toolTip": "Naming prefix used for deployment metadata and any newly created monitoring artifacts.",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{1,6}$",
+          "validationMessage": "Use 1-6 lowercase letters or digits."
+        }
+      },
+      {
+        "name": "environment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Environment",
+        "defaultValue": "dev",
+        "constraints": {
+          "required": true,
+          "allowedValues": [
+            {
+              "label": "Development",
+              "value": "dev"
+            },
+            {
+              "label": "Test",
+              "value": "test"
+            },
+            {
+              "label": "Production",
+              "value": "prod"
+            }
+          ]
+        }
+      }
+    ],
+    "steps": [
+      {
+        "name": "brownfieldTarget",
+        "label": "Existing AVD target",
+        "elements": [
+          {
+            "name": "selectedHostPool",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing host pool",
+            "resourceType": "Microsoft.DesktopVirtualization/hostPools",
+            "toolTip": "Select the host pool whose control-plane and optional guest monitoring posture should be aligned.",
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "selectedHostPoolApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "scalingPlansApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/scalingPlans?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "appGroupsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "workspacesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/workspaces?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolDiagnosticsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "sessionHostsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '/sessionHosts?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "resourceGroupResourcesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/resources?api-version=2021-04-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolInspectionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Selected host pool: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'None'), '. Diagnostics currently attached: ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '. Session hosts discovered: ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '.')]"
+            }
+          },
+          {
+            "name": "resourceCoverageSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Related workspaces discovered: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '. Related application groups discovered: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "monitoringSettings",
+        "label": "Monitoring posture",
+        "elements": [
+          {
+            "name": "monitoringScope",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Monitoring alignment scope",
+            "defaultValue": "ControlPlaneOnly",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Control-plane only: diagnostic settings for the host pool, related workspaces, and related app groups",
+                  "value": "ControlPlaneOnly"
+                },
+                {
+                  "label": "Full monitoring posture: control-plane diagnostics plus guest AMA and DCR onboarding for discovered session hosts",
+                  "value": "FullMonitoringPosture"
+                }
+              ]
+            }
+          },
+          {
+            "name": "monitoringWorkspaceMode",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Log Analytics workspace mode",
+            "defaultValue": "CreateNew",
+            "constraints": {
+              "required": true,
+              "allowedValues": [
+                {
+                  "label": "Create new workspace in the target host pool resource group",
+                  "value": "CreateNew"
+                },
+                {
+                  "label": "Use an existing Log Analytics workspace",
+                  "value": "UseExisting"
+                }
+              ]
+            }
+          },
+          {
+            "name": "monitoringWorkspaceName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "New Log Analytics workspace name",
+            "defaultValue": "log-avd-brownfield",
+            "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+              "regex": "^[A-Za-z0-9][A-Za-z0-9_-]{2,61}[A-Za-z0-9]$",
+              "validationMessage": "Use 4-63 letters, numbers, underscores, or hyphens."
+            }
+          },
+          {
+            "name": "existingLogAnalyticsWorkspace",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing Log Analytics workspace",
+            "resourceType": "Microsoft.OperationalInsights/workspaces",
+            "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting')]",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting')]"
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "monitoringRetentionDays",
+            "type": "Microsoft.Common.Slider",
+            "label": "Retention (days)",
+            "visible": "[equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew')]",
+            "min": 30,
+            "max": 730,
+            "defaultValue": 30,
+            "showStepMarkers": true
+          },
+          {
+            "name": "guestMonitoringDiscoverySummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "options": {
+              "text": "[concat('Discovered session hosts in the selected host pool: ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '. Guest monitoring onboarding will target the corresponding VM names derived from those AVD session hosts.')]"
+            }
+          },
+          {
+            "name": "monitoringPreset",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Guest telemetry preset",
+            "defaultValue": "Standard",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+              "allowedValues": [
+                {
+                  "label": "Standard: essential CPU, queue, memory, disk, and AVD/FSLogix/profile errors and warnings",
+                  "value": "Standard"
+                },
+                {
+                  "label": "Enhanced: Standard plus paging, extra disk and network detail, and informational AVD/FSLogix/profile events",
+                  "value": "Enhanced"
+                }
+              ]
+            }
+          },
+          {
+            "name": "monitoringPresetSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "options": {
+              "text": "[if(equals(steps('monitoringSettings').monitoringPreset, 'Enhanced'), 'Enhanced preset collects the Standard baseline plus memory paging, extra disk latency and queue detail, network queue and packet errors, and informational Terminal Services, RdpCoreTS, FSLogix, and User Profile Service events.', 'Standard preset collects essential CPU, processor queue, available and committed memory, core disk latency and throughput, network throughput, and critical, error, and warning events from Terminal Services, RdpCoreTS, FSLogix, and User Profile Service channels.')]"
+            }
+          },
+          {
+            "name": "sessionHostVmResourceGroupName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Session host VM resource group name",
+            "defaultValue": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '')]",
+            "visible": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+            "toolTip": "Use the resource group that contains the existing session host virtual machines. This defaults to the selected host pool resource group because that is the most common layout.",
+            "constraints": {
+              "required": "[equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture')]",
+              "regex": "^[A-Za-z0-9._()\\-]{1,90}$",
+              "validationMessage": "Enter the resource group name that contains the existing session host virtual machines."
+            }
+          },
+          {
+            "name": "monitoringSettingsNote",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), concat('This action aligns control-plane diagnostic settings and also onboards the discovered session host virtual machines to Azure Monitor Agent and a Data Collection Rule using the ', steps('monitoringSettings').monitoringPreset, ' guest telemetry preset. Session hosts are not recreated.'), 'This action aligns control-plane diagnostic settings on the selected host pool, discovered workspaces, and discovered application groups. It does not redeploy session hosts or guest-level Azure Monitor Agent associations.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "review",
+        "label": "Review",
+        "elements": [
+          {
+            "name": "reviewTargetSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Target host pool: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), ' in resource group ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '.')]"
+            }
+          },
+          {
+            "name": "reviewActionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Requested action: align monitoring posture with scope ', steps('monitoringSettings').monitoringScope, ' and workspace mode ', steps('monitoringSettings').monitoringWorkspaceMode, '.')]"
+            }
+          },
+          {
+            "name": "reviewCoverageSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Discovered workspaces: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '; discovered application groups: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '; discovered session hosts: ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '.')]"
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "applicationResourceName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'avd-monitoring-action')]",
+      "location": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'location'), steps('brownfieldTarget').selectedHostPool.location, location())]",
+      "deploymentPrefix": "[basics('deploymentPrefix')]",
+      "deploymentScenario": "Day2Operations",
+      "expandOperation": "",
+      "day2Operation": "AlignMonitoringPosture",
+      "environment": "[basics('environment')]",
+      "networkMode": "UseExistingVnet",
+      "sessionHostCount": 1,
+      "vmSize": "Standard_D2ads_v5",
+      "imageSource": "Marketplace",
+      "sessionHostSecurityType": "Standard",
+      "hostPoolType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Pooled')]",
+      "hostPoolName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, '')]",
+      "existingHostPoolResourceGroupName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '')]",
+      "existingWorkspaceNames": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)), (workspace) => workspace.name)]",
+      "relatedApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)), (appGroup) => appGroup.name)]",
+      "relatedDesktopApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'Desktop'))), (appGroup) => appGroup.name)]",
+      "relatedRemoteAppApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), equals(appGroup.properties.applicationGroupType, 'RemoteApp'))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedLoadBalancerType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'loadBalancerType')), steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, '')]",
+      "brownfieldDetectedPreferredAppGroupType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType')), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, '')]",
+      "brownfieldDetectedAuthenticationType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'customRdpProperty')), if(contains(string(steps('brownfieldTarget').selectedHostPoolApi.properties.customRdpProperty), 'targetisaadjoined:i:1'), 'EntraID', 'HybridJoin'), 'Unknown')]",
+      "brownfieldDetectedHostPoolDiagnosticSettingNames": "[map(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')), (setting) => setting.name)]",
+      "brownfieldDetectedWorkspacesWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(workspace.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0)), (workspace) => workspace.name)]",
+      "brownfieldDetectedApplicationGroupsWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(appGroup.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedScalingPlanNames": "[map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id)), (plan) => plan.name)]",
+      "brownfieldDetectedSessionHostVmNames": "[map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.')))]",
+      "brownfieldDetectedDesktopAssignmentCount": 0,
+      "brownfieldDetectedRemoteAppAssignmentCount": 0,
+      "brownfieldDetectedDirectUserAssignmentCount": 0,
+      "brownfieldDetectedGroupAssignmentCount": 0,
+      "brownfieldDetectedFslogixStorageAccountName": "",
+      "brownfieldDetectedFslogixStorageAccountResourceId": "",
+      "brownfieldDetectedFslogixPublicNetworkAccess": "NotAssessed",
+      "brownfieldDetectedFslogixPrivateEndpointCount": 0,
+      "brownfieldDetectedFslogixPrivateDnsLinkState": "NotAssessed",
+      "brownfieldDetectedNetworkVnetName": "",
+      "adminUsername": "",
+      "adminPassword": "",
+      "deployFSLogix": false,
+      "storageAccountName": "",
+      "deployFSLogixPrivateEndpoint": false,
+      "deployMonitoring": false,
+      "brownfieldMonitoringWorkspaceMode": "[steps('monitoringSettings').monitoringWorkspaceMode]",
+      "brownfieldMonitoringScope": "[steps('monitoringSettings').monitoringScope]",
+      "brownfieldMonitoringPreset": "[if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), steps('monitoringSettings').monitoringPreset, 'Standard')]",
+      "brownfieldMonitoringWorkspaceName": "[if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), steps('monitoringSettings').monitoringWorkspaceName, '')]",
+      "brownfieldMonitoringExistingWorkspaceResourceId": "[if(and(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'UseExisting'), contains(steps('monitoringSettings').existingLogAnalyticsWorkspace, 'id')), steps('monitoringSettings').existingLogAnalyticsWorkspace.id, '')]",
+      "brownfieldMonitoringRetentionDays": "[if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), steps('monitoringSettings').monitoringRetentionDays, 30)]",
+      "brownfieldMonitoringSessionHostVmResourceGroupName": "[if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), steps('monitoringSettings').sessionHostVmResourceGroupName, '')]",
+      "brownfieldMonitoringSessionHostVmNames": "[if(equals(steps('monitoringSettings').monitoringScope, 'FullMonitoringPosture'), map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.'))), parse('[]'))]",
+      "scalingPlanName": "",
+      "scalingPlanFriendlyName": "",
+      "scalingPlanDescription": "",
+      "scalingPlanTimeZone": "UTC",
+      "scalingPlanExclusionTag": "",
+      "weekdayRampUpStartTime": "06:00",
+      "weekdayPeakStartTime": "09:00",
+      "weekdayRampDownStartTime": "17:00",
+      "weekdayOffPeakStartTime": "20:00",
+      "weekendRampUpStartTime": "08:00",
+      "weekendPeakStartTime": "10:00",
+      "weekendRampDownStartTime": "15:00",
+      "weekendOffPeakStartTime": "18:00",
+      "rampUpLoadBalancingAlgorithm": "BreadthFirst",
+      "peakLoadBalancingAlgorithm": "BreadthFirst",
+      "rampDownLoadBalancingAlgorithm": "DepthFirst",
+      "offPeakLoadBalancingAlgorithm": "DepthFirst",
+      "minimumHostsPct": 20,
+      "capacityThresholdPct": 75,
+      "rampDownWaitTimeMinutes": 30,
+      "rampDownStopHostsWhen": "ZeroSessions",
+      "rampDownForceLogoffUsers": false,
+      "rampDownNotificationMessage": "This session host will be stopped by the Azure Virtual Desktop scaling plan.",
+      "avdUserObjectIds": "",
+      "desktopAccessAssignments": [],
+      "remoteAppAccessAssignments": [],
+      "brownfieldFslogixStorageAccountResourceId": "",
+      "brownfieldFslogixPrivateDnsZoneMode": "CreateNew",
+      "remoteApps": []
+    }
+  }
+}

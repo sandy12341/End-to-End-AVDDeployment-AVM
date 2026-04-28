@@ -11,7 +11,6 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $infraRoot = Join-Path $repoRoot 'infra'
 $managedAppRoot = Join-Path $infraRoot 'managedapp'
 $managedAppDistRoot = Join-Path $managedAppRoot 'dist'
-$managedAppPackageRoot = Join-Path $managedAppDistRoot 'package'
 
 function New-ManagedAppPackage {
     param(
@@ -67,10 +66,13 @@ if (-not $SkipManagedApp) {
 }
 
 if (-not $SkipPackage) {
-    New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.json' -PackageDirectoryName 'package' -ZipFileName 'app.zip'
     New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.new.json' -PackageDirectoryName 'package-new' -ZipFileName 'app-new.zip'
     New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.existing.json' -PackageDirectoryName 'package-existing' -ZipFileName 'app-existing.zip'
     New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.day2.json' -PackageDirectoryName 'package-day2' -ZipFileName 'app-day2.zip'
+    New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.addhosts.json' -PackageDirectoryName 'package-addhosts' -ZipFileName 'app-addhosts.zip'
+    New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.scaling.json' -PackageDirectoryName 'package-scaling' -ZipFileName 'app-scaling.zip'
+    New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.monitoring.json' -PackageDirectoryName 'package-monitoring' -ZipFileName 'app-monitoring.zip'
+    New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.summary.json' -PackageDirectoryName 'package-summary' -ZipFileName 'app-summary.zip'
 }
 
 Write-Host 'Deployment artifact build complete.'

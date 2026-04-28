@@ -37,6 +37,84 @@ param relatedDesktopApplicationGroupNames array = []
 @description('Existing RemoteApp application groups related to the selected host pool.')
 param relatedRemoteAppApplicationGroupNames array = []
 
+@description('Detected load balancer type for the selected brownfield host pool.')
+param brownfieldDetectedLoadBalancerType string = ''
+
+@description('Detected preferred application group type for the selected brownfield host pool.')
+param brownfieldDetectedPreferredAppGroupType string = ''
+
+@description('Detected authentication posture for the selected brownfield host pool.')
+param brownfieldDetectedAuthenticationType string = ''
+
+@description('Detected max session limit for the selected brownfield host pool.')
+param brownfieldDetectedMaxSessionLimit int = 0
+
+@description('Detected Start VM on Connect state for the selected brownfield host pool.')
+param brownfieldDetectedStartVmOnConnect bool = false
+
+@description('Detected validation-environment flag for the selected brownfield host pool.')
+param brownfieldDetectedValidationEnvironment bool = false
+
+@description('Detected diagnostic setting names already attached to the selected brownfield host pool.')
+param brownfieldDetectedHostPoolDiagnosticSettingNames array = []
+
+@description('Workspace names that already have at least one diagnostic setting detected in the selected brownfield host pool resource group.')
+param brownfieldDetectedWorkspacesWithDiagnostics array = []
+
+@description('Application group names that already have at least one diagnostic setting detected in the selected brownfield host pool resource group.')
+param brownfieldDetectedApplicationGroupsWithDiagnostics array = []
+
+@description('Detected scaling plan names already attached to the selected brownfield host pool.')
+param brownfieldDetectedScalingPlanNames array = []
+
+@description('Detected session host VM names currently registered to the selected brownfield host pool.')
+param brownfieldDetectedSessionHostVmNames array = []
+
+@description('Detected session host VM names that appear to have Azure Monitor Agent installed in the selected host pool resource group.')
+param brownfieldDetectedSessionHostsWithAma array = []
+
+@description('Detected session host VM names that appear to have data collection rule associations in the selected host pool resource group.')
+param brownfieldDetectedSessionHostsWithDcrAssociation array = []
+
+@description('Detected data collection rule names in the selected host pool resource group.')
+param brownfieldDetectedDataCollectionRuleNames array = []
+
+@description('Detected scaling plan names that already have diagnostic settings in the selected host pool resource group.')
+param brownfieldDetectedScalingPlansWithDiagnostics array = []
+
+@description('Detected subscription-scope Desktop Virtualization Power On Off Contributor assignments in the current subscription.')
+param brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount int = 0
+
+@description('Detected role assignment count across related desktop application groups.')
+param brownfieldDetectedDesktopAssignmentCount int = 0
+
+@description('Detected role assignment count across related RemoteApp application groups.')
+param brownfieldDetectedRemoteAppAssignmentCount int = 0
+
+@description('Detected direct user assignment count across related application groups.')
+param brownfieldDetectedDirectUserAssignmentCount int = 0
+
+@description('Detected group-based assignment count across related application groups.')
+param brownfieldDetectedGroupAssignmentCount int = 0
+
+@description('Detected FSLogix storage account name provided for operational summary assessment.')
+param brownfieldDetectedFslogixStorageAccountName string = ''
+
+@description('Detected FSLogix storage account resource ID provided for operational summary assessment.')
+param brownfieldDetectedFslogixStorageAccountResourceId string = ''
+
+@description('Detected public network access state for the FSLogix storage account under assessment.')
+param brownfieldDetectedFslogixPublicNetworkAccess string = 'NotAssessed'
+
+@description('Detected private endpoint connection count for the FSLogix storage account under assessment.')
+param brownfieldDetectedFslogixPrivateEndpointCount int = 0
+
+@description('Detected private DNS link state for the FSLogix storage assessment. Expected values are Linked, Missing, or NotAssessed.')
+param brownfieldDetectedFslogixPrivateDnsLinkState string = 'NotAssessed'
+
+@description('Detected VNet name used for the brownfield network posture assessment.')
+param brownfieldDetectedNetworkVnetName string = ''
+
 @description('Monitoring workspace mode for brownfield monitoring alignment.')
 @allowed(['CreateNew', 'UseExisting'])
 param brownfieldMonitoringWorkspaceMode string = 'CreateNew'
@@ -351,6 +429,32 @@ module sharedSolution '../solution/avdDeploymentCore.bicep' = {
     relatedApplicationGroupNames: relatedApplicationGroupNames
     relatedDesktopApplicationGroupNames: relatedDesktopApplicationGroupNames
     relatedRemoteAppApplicationGroupNames: relatedRemoteAppApplicationGroupNames
+    brownfieldDetectedLoadBalancerType: brownfieldDetectedLoadBalancerType
+    brownfieldDetectedPreferredAppGroupType: brownfieldDetectedPreferredAppGroupType
+    brownfieldDetectedAuthenticationType: brownfieldDetectedAuthenticationType
+    brownfieldDetectedMaxSessionLimit: brownfieldDetectedMaxSessionLimit
+    brownfieldDetectedStartVmOnConnect: brownfieldDetectedStartVmOnConnect
+    brownfieldDetectedValidationEnvironment: brownfieldDetectedValidationEnvironment
+    brownfieldDetectedHostPoolDiagnosticSettingNames: brownfieldDetectedHostPoolDiagnosticSettingNames
+    brownfieldDetectedWorkspacesWithDiagnostics: brownfieldDetectedWorkspacesWithDiagnostics
+    brownfieldDetectedApplicationGroupsWithDiagnostics: brownfieldDetectedApplicationGroupsWithDiagnostics
+    brownfieldDetectedScalingPlanNames: brownfieldDetectedScalingPlanNames
+    brownfieldDetectedSessionHostVmNames: brownfieldDetectedSessionHostVmNames
+    brownfieldDetectedSessionHostsWithAma: brownfieldDetectedSessionHostsWithAma
+    brownfieldDetectedSessionHostsWithDcrAssociation: brownfieldDetectedSessionHostsWithDcrAssociation
+    brownfieldDetectedDataCollectionRuleNames: brownfieldDetectedDataCollectionRuleNames
+    brownfieldDetectedScalingPlansWithDiagnostics: brownfieldDetectedScalingPlansWithDiagnostics
+    brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount: brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount
+    brownfieldDetectedDesktopAssignmentCount: brownfieldDetectedDesktopAssignmentCount
+    brownfieldDetectedRemoteAppAssignmentCount: brownfieldDetectedRemoteAppAssignmentCount
+    brownfieldDetectedDirectUserAssignmentCount: brownfieldDetectedDirectUserAssignmentCount
+    brownfieldDetectedGroupAssignmentCount: brownfieldDetectedGroupAssignmentCount
+    brownfieldDetectedFslogixStorageAccountName: brownfieldDetectedFslogixStorageAccountName
+    brownfieldDetectedFslogixStorageAccountResourceId: brownfieldDetectedFslogixStorageAccountResourceId
+    brownfieldDetectedFslogixPublicNetworkAccess: brownfieldDetectedFslogixPublicNetworkAccess
+    brownfieldDetectedFslogixPrivateEndpointCount: brownfieldDetectedFslogixPrivateEndpointCount
+    brownfieldDetectedFslogixPrivateDnsLinkState: brownfieldDetectedFslogixPrivateDnsLinkState
+    brownfieldDetectedNetworkVnetName: brownfieldDetectedNetworkVnetName
     brownfieldMonitoringWorkspaceMode: brownfieldMonitoringWorkspaceMode
     brownfieldMonitoringScope: brownfieldMonitoringScope
     brownfieldMonitoringPreset: brownfieldMonitoringPreset
@@ -412,3 +516,7 @@ output scalingPlanId string = sharedSolution.outputs.scalingPlanId
 output brownfieldOperationSummary string = sharedSolution.outputs.brownfieldOperationSummary
 output effectiveAvdMode string = sharedSolution.outputs.effectiveAvdMode
 output avdRolesAssigned bool = sharedSolution.outputs.avdRolesAssigned
+output operationalSummary object = sharedSolution.outputs.operationalSummary
+output operationalGapRegister array = sharedSolution.outputs.operationalGapRegister
+output operationalSummaryHtml string = sharedSolution.outputs.operationalSummaryHtml
+output operationalSummaryHtmlDataUri string = sharedSolution.outputs.operationalSummaryHtmlDataUri

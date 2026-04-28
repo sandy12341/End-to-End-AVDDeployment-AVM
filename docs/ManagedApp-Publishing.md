@@ -388,6 +388,25 @@ After the definitions exist, update the repo docs with the real operator-facing 
 
 Do not publish placeholder URLs in the repo before the definitions are live.
 
+## Operational Summary Outputs
+
+For `Generate Operational Summary`, the useful outputs are on the managed application deployment inside the managed resource group, not on the application definition resource in `rg-avd-managedapp-def-avm`.
+
+After an operator runs the definition:
+
+1. Open the managed application instance.
+2. Open the linked managed resource group.
+3. Open `Deployments`.
+4. Open the inner deployment created for the selected host pool.
+5. Open `Outputs`.
+
+The output keys to look for are:
+
+- `operationalSummaryHtml`: the rendered HTML report body with the summary table, recommendations, and findings.
+- `operationalSummaryHtmlDataUri`: a `data:text/html;base64,...` URI for opening the same report directly in a browser or another viewer that accepts data URIs.
+
+If the outer deployment under `rg-avd-managedapp-def-avm` shows empty outputs, that is expected. The actual report outputs live on the nested deployment in the managed resource group.
+
 ## Current Published State
 
 Active package hosting:
@@ -427,7 +446,7 @@ Operator-facing portal links:
 Focused wizard runtime checklist:
 
 - `Add Session Hosts`: expected stepper is `Basics`, `Existing AVD target`, `Instance details`, `Networking`, `Local admin`, `Authentication`, `Review`.
-- `Configure Scaling Plan`: expected stepper is `Basics`, `Existing AVD target`, `Eligibility check`, `Scaling plan`, `Review`.
+- `Configure Scaling Plan`: expected stepper is `Basics`, `Existing AVD target`, `Scaling plan`, `Review`.
 - `Align Monitoring Posture`: expected stepper is `Basics`, `Existing AVD target`, `Monitoring posture`, `Review`.
 - `Generate Operational Summary`: expected stepper is `Basics`, `Existing AVD target`, `Optional FSLogix enrichment`, `Review`.
 

@@ -1,0 +1,443 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true,
+      "basics": {
+        "description": "Generate a read-only operational summary for an existing Azure Virtual Desktop host pool without reopening the broader day-2 operations wizard.",
+        "resourceGroup": {
+          "allowExisting": true
+        },
+        "subscription": {
+          "resourceProviders": [
+            "Microsoft.Authorization",
+            "Microsoft.Compute",
+            "Microsoft.DesktopVirtualization",
+            "Microsoft.Insights",
+            "Microsoft.Network",
+            "Microsoft.OperationalInsights",
+            "Microsoft.Storage"
+          ]
+        },
+        "location": {
+          "resourceTypes": [
+            "Microsoft.DesktopVirtualization/hostPools",
+            "Microsoft.Network/privateDnsZones",
+            "Microsoft.Network/virtualNetworks",
+            "Microsoft.Storage/storageAccounts"
+          ]
+        }
+      }
+    },
+    "basics": [
+      {
+        "name": "deploymentPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Deployment Prefix",
+        "defaultValue": "avd1",
+        "toolTip": "Naming prefix used for deployment metadata and report naming.",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{1,6}$",
+          "validationMessage": "Use 1-6 lowercase letters or digits."
+        }
+      },
+      {
+        "name": "environment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Environment",
+        "defaultValue": "dev",
+        "constraints": {
+          "required": true,
+          "allowedValues": [
+            {
+              "label": "Development",
+              "value": "dev"
+            },
+            {
+              "label": "Test",
+              "value": "test"
+            },
+            {
+              "label": "Production",
+              "value": "prod"
+            }
+          ]
+        }
+      }
+    ],
+    "steps": [
+      {
+        "name": "brownfieldTarget",
+        "label": "Existing AVD target",
+        "elements": [
+          {
+            "name": "selectedHostPool",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing host pool",
+            "resourceType": "Microsoft.DesktopVirtualization/hostPools",
+            "toolTip": "Select the host pool that should be assessed for the operational summary.",
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "selectedHostPoolApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "scalingPlansApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/scalingPlans?api-version=2025-10-10'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "appGroupsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "workspacesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/workspaces?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "hostPoolDiagnosticsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "sessionHostsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(steps('brownfieldTarget').selectedHostPool.id, '/sessionHosts?api-version=2024-04-03'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "resourceGroupResourcesApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/resources?api-version=2021-04-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "resourceGroupRoleAssignmentsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "subscriptionRoleAssignmentsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01')]"
+            }
+          },
+          {
+            "name": "hostPoolInspectionSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Selected host pool: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'None'), '. Diagnostics currently attached: ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '. Session hosts discovered: ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '.')]"
+            }
+          },
+          {
+            "name": "resourceCoverageSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "[concat('Related workspaces discovered: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '. Related application groups discovered: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "fslogixSettings",
+        "label": "Optional FSLogix enrichment",
+        "elements": [
+          {
+            "name": "fslogixSettingsNote",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Optional but recommended: select the FSLogix storage account, the session-host VNet, and optionally the private DNS zone to enrich the summary with storage exposure and private connectivity posture. Leave these blank if you only want the base host-pool operational summary."
+            }
+          },
+          {
+            "name": "fslogixStorageAccount",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "FSLogix storage account",
+            "resourceType": "Microsoft.Storage/storageAccounts",
+            "constraints": {
+              "required": false
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "fslogixStorageApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), not(empty(steps('fslogixSettings').fslogixStorageAccount.id))), concat(steps('fslogixSettings').fslogixStorageAccount.id, '?api-version=2025-01-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "fslogixPrivateEndpointConnectionsApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), not(empty(steps('fslogixSettings').fslogixStorageAccount.id))), concat(steps('fslogixSettings').fslogixStorageAccount.id, '/privateEndpointConnections?api-version=2025-01-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "existingVnet",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Existing virtual network",
+            "resourceType": "Microsoft.Network/virtualNetworks",
+            "constraints": {
+              "required": false
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "privateDnsZone",
+            "type": "Microsoft.Solutions.ResourceSelector",
+            "label": "Private DNS zone (optional)",
+            "resourceType": "Microsoft.Network/privateDnsZones",
+            "constraints": {
+              "required": false
+            },
+            "options": {
+              "filter": {
+                "subscription": "onBasics"
+              }
+            }
+          },
+          {
+            "name": "privateDnsZoneLinksApi",
+            "type": "Microsoft.Solutions.ArmApiControl",
+            "request": {
+              "method": "GET",
+              "path": "[if(and(contains(steps('fslogixSettings').privateDnsZone, 'id'), not(empty(steps('fslogixSettings').privateDnsZone.id))), concat(steps('fslogixSettings').privateDnsZone.id, '/virtualNetworkLinks?api-version=2024-06-01'), concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups?api-version=2021-04-01'))]"
+            }
+          },
+          {
+            "name": "fslogixReviewSummary",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": "[contains(steps('fslogixSettings').fslogixStorageApi, 'properties')]",
+            "options": {
+              "text": "[concat('Public network access: ', if(contains(steps('fslogixSettings').fslogixStorageApi, 'properties'), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'Unknown'), '. Private endpoint connections detected: ', string(length(if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value, parse('[]')))), '.')]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "review",
+        "label": "Review",
+        "elements": [
+          {
+            "name": "operationalSummaryExecutive",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "This action is read-only and emits a structured operational summary for the selected host pool."
+            }
+          },
+          {
+            "name": "operationalSummaryTargetSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "The summary returns a target snapshot, posture findings, and recommended follow-up actions in the deployment outputs."
+            }
+          },
+          {
+            "name": "operationalSummaryResourcesSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Discovery covers the selected host pool, related application groups and workspaces, and any currently registered session hosts."
+            }
+          },
+          {
+            "name": "operationalSummaryGapSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Best-practice gaps are returned in the deployment outputs as a structured gap register for later review."
+            }
+          },
+          {
+            "name": "operationalSummaryMonitoringExpandedSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Monitoring findings include control-plane diagnostics posture for the host pool and related AVD resources."
+            }
+          },
+          {
+            "name": "operationalSummaryAccessSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Access findings include assignment posture derived from application groups and resource-group role assignments in scope."
+            }
+          },
+          {
+            "name": "operationalSummaryFslogixSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "If you provide FSLogix inputs, the summary also reports storage exposure and private-connectivity posture."
+            }
+          },
+          {
+            "name": "operationalSummaryFollowUpSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Review the deployment outputs for the recommendation set. Typical follow-up actions are Align Monitoring Posture or Configure Scaling Plan."
+            }
+          },
+          {
+            "name": "operationalSummaryCoverageSection",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Assessment coverage: this report now assesses host pool properties, related application groups and workspaces, host pool diagnostic settings, derived workspace and application-group diagnostics coverage in the host pool resource group, scaling plan attachments, registered session hosts, inferred AMA and DCR-association coverage for discovered session hosts in the host pool resource group, scaling-plan diagnostic coverage in the host pool resource group, subscription-scope Power On Off Contributor role detection as an autoscale prerequisite proxy, derived application-group role assignments in the host pool resource group, and FSLogix private-connectivity posture when a storage account is provided. It still does not assess NSG rules, routes, firewalls, guest OS drift, or end-to-end autoscale runtime success."
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "applicationResourceName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'avd-operational-summary')]",
+      "location": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'location'), steps('brownfieldTarget').selectedHostPool.location, location())]",
+      "deploymentPrefix": "[basics('deploymentPrefix')]",
+      "deploymentScenario": "Day2Operations",
+      "expandOperation": "",
+      "day2Operation": "GenerateOperationalSummary",
+      "networkMode": "UseExistingVnet",
+      "existingVnetName": "",
+      "existingVnetResourceGroupName": "",
+      "newVnetName": "",
+      "newVnetAddressPrefix": "",
+      "newSessionHostSubnetName": "",
+      "newSessionHostSubnetPrefix": "",
+      "newPrivateEndpointSubnetName": "",
+      "newPrivateEndpointSubnetPrefix": "",
+      "sessionHostSubnetName": "",
+      "privateEndpointSubnetName": "",
+      "hubVnetResourceId": "",
+      "environment": "[basics('environment')]",
+      "sessionHostCount": 1,
+      "vmSize": "Standard_D2ads_v5",
+      "imageSource": "Marketplace",
+      "sessionHostSecurityType": "Standard",
+      "hostPoolType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Pooled')]",
+      "hostPoolName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, '')]",
+      "existingHostPoolResourceGroupName": "[if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '')]",
+      "existingWorkspaceNames": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), contains(appGroup.properties, 'workspaceArmPath'), equals(toLower(string(appGroup.properties.workspaceArmPath)), toLower(string(workspace.id)))))), 0)), (workspace) => workspace.name)]",
+      "relatedApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id)))), (appGroup) => appGroup.name)]",
+      "relatedDesktopApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(appGroup.properties.applicationGroupType, 'Desktop'))), (appGroup) => appGroup.name)]",
+      "relatedRemoteAppApplicationGroupNames": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(appGroup.properties.applicationGroupType, 'RemoteApp'))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedLoadBalancerType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'loadBalancerType')), steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, '')]",
+      "brownfieldDetectedPreferredAppGroupType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType')), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, '')]",
+      "brownfieldDetectedAuthenticationType": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'customRdpProperty')), if(contains(string(steps('brownfieldTarget').selectedHostPoolApi.properties.customRdpProperty), 'targetisaadjoined:i:1'), 'EntraID', 'HybridJoin'), 'Unknown')]",
+      "brownfieldDetectedMaxSessionLimit": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'maxSessionLimit')), steps('brownfieldTarget').selectedHostPoolApi.properties.maxSessionLimit, 0)]",
+      "brownfieldDetectedStartVmOnConnect": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'startVMOnConnect')), steps('brownfieldTarget').selectedHostPoolApi.properties.startVMOnConnect, false)]",
+      "brownfieldDetectedValidationEnvironment": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'validationEnvironment')), steps('brownfieldTarget').selectedHostPoolApi.properties.validationEnvironment, false)]",
+      "brownfieldDetectedHostPoolDiagnosticSettingNames": "[map(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')), (setting) => setting.name)]",
+      "brownfieldDetectedWorkspacesWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(resource.id, concat(workspace.id, '/providers/Microsoft.Insights/diagnosticSettings/')))), 0)), (workspace) => workspace.name)]",
+      "brownfieldDetectedApplicationGroupsWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(toLower(string(resource.id)), toLower(concat(appGroup.id, '/providers/Microsoft.Insights/diagnosticSettings/'))))), 0))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedScalingPlanNames": "[map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id)), (plan) => plan.name)]",
+      "brownfieldDetectedSessionHostVmNames": "[map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.')))]",
+      "brownfieldDetectedSessionHostsWithAma": "[map(filter(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(toLower(string(resource.id)), toLower(concat('/virtualmachines/', first(split(last(split(sessionHost.name, '/')), '.')), '/extensions/azuremonitorwindowsagent'))))), 0)), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.')))]",
+      "brownfieldDetectedSessionHostsWithDcrAssociation": "[map(filter(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(toLower(string(resource.id)), toLower(concat('/virtualmachines/', first(split(last(split(sessionHost.name, '/')), '.')), '/providers/microsoft.insights/datacollectionruleassociations/'))))), 0)), (sessionHost) => first(split(last(split(sessionHost.name, '/')), '.')))]",
+      "brownfieldDetectedDataCollectionRuleNames": "[map(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => equals(toLower(string(resource.type)), 'microsoft.insights/datacollectionrules')), (resource) => resource.name)]",
+      "brownfieldDetectedScalingPlansWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => and(contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id), greater(length(filter(if(contains(steps('brownfieldTarget').resourceGroupResourcesApi, 'value'), steps('brownfieldTarget').resourceGroupResourcesApi.value, parse('[]')), (resource) => contains(toLower(string(resource.id)), toLower(concat(plan.id, '/providers/Microsoft.Insights/diagnosticSettings/'))))), 0))), (plan) => plan.name)]",
+      "brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => and(equals(toLower(string(assignment.properties.scope)), toLower(concat('/subscriptions/', subscription().subscriptionId))), contains(toLower(string(assignment.properties.roleDefinitionId)), '/40c5ff49-9181-41f8-ae61-143b0e78555e'))))]",
+      "brownfieldDetectedDesktopAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(appGroup.properties.applicationGroupType, 'Desktop'), equals(toLower(string(assignment.properties.scope)), toLower(string(appGroup.id)))))), 0)))]",
+      "brownfieldDetectedRemoteAppAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(appGroup.properties.applicationGroupType, 'RemoteApp'), equals(toLower(string(assignment.properties.scope)), toLower(string(appGroup.id)))))), 0)))]",
+      "brownfieldDetectedDirectUserAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => and(equals(assignment.properties.principalType, 'User'), greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(toLower(string(assignment.properties.scope)), toLower(string(appGroup.id)))))), 0))))]",
+      "brownfieldDetectedGroupAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => and(equals(assignment.properties.principalType, 'Group'), greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(toLower(string(assignment.properties.scope)), toLower(string(appGroup.id)))))), 0))))]",
+      "brownfieldDetectedFslogixStorageAccountName": "[if(contains(steps('fslogixSettings').fslogixStorageAccount, 'name'), steps('fslogixSettings').fslogixStorageAccount.name, '')]",
+      "brownfieldDetectedFslogixStorageAccountResourceId": "[if(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), steps('fslogixSettings').fslogixStorageAccount.id, '')]",
+      "brownfieldDetectedFslogixPublicNetworkAccess": "[if(contains(steps('fslogixSettings').fslogixStorageApi, 'properties'), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'NotAssessed')]",
+      "brownfieldDetectedFslogixPrivateEndpointCount": "[if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), length(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value), 0)]",
+      "brownfieldDetectedFslogixPrivateDnsLinkState": "[if(and(contains(steps('fslogixSettings').privateDnsZone, 'id'), contains(steps('fslogixSettings').existingVnet, 'id')), if(greater(length(filter(if(contains(steps('fslogixSettings').privateDnsZoneLinksApi, 'value'), steps('fslogixSettings').privateDnsZoneLinksApi.value, parse('[]')), (link) => and(contains(link, 'properties'), contains(link.properties, 'virtualNetwork'), contains(link.properties.virtualNetwork, 'id'), equals(link.properties.virtualNetwork.id, steps('fslogixSettings').existingVnet.id)))), 0), 'Linked', 'Missing'), 'NotAssessed')]",
+      "brownfieldDetectedNetworkVnetName": "[if(contains(steps('fslogixSettings').existingVnet, 'name'), steps('fslogixSettings').existingVnet.name, '')]",
+      "adminUsername": "",
+      "adminPassword": "",
+      "authenticationType": "EntraID",
+      "domainFqdn": "",
+      "domainJoinUsername": "",
+      "domainJoinPassword": "",
+      "domainJoinOuPath": "",
+      "deployFSLogix": false,
+      "storageAccountName": "",
+      "deployFSLogixPrivateEndpoint": false,
+      "deployMonitoring": false,
+      "brownfieldMonitoringWorkspaceMode": "CreateNew",
+      "brownfieldMonitoringScope": "ControlPlaneOnly",
+      "brownfieldMonitoringPreset": "Standard",
+      "brownfieldMonitoringWorkspaceName": "",
+      "brownfieldMonitoringExistingWorkspaceResourceId": "",
+      "brownfieldMonitoringRetentionDays": 30,
+      "brownfieldMonitoringSessionHostVmResourceGroupName": "",
+      "brownfieldMonitoringSessionHostVmNames": [],
+      "scalingPlanName": "",
+      "scalingPlanFriendlyName": "",
+      "scalingPlanDescription": "",
+      "scalingPlanTimeZone": "UTC",
+      "scalingPlanExclusionTag": "",
+      "weekdayRampUpStartTime": "06:00",
+      "weekdayPeakStartTime": "09:00",
+      "weekdayRampDownStartTime": "17:00",
+      "weekdayOffPeakStartTime": "20:00",
+      "weekendRampUpStartTime": "08:00",
+      "weekendPeakStartTime": "10:00",
+      "weekendRampDownStartTime": "15:00",
+      "weekendOffPeakStartTime": "18:00",
+      "rampUpLoadBalancingAlgorithm": "BreadthFirst",
+      "peakLoadBalancingAlgorithm": "BreadthFirst",
+      "rampDownLoadBalancingAlgorithm": "DepthFirst",
+      "offPeakLoadBalancingAlgorithm": "DepthFirst",
+      "minimumHostsPct": 20,
+      "capacityThresholdPct": 75,
+      "rampDownWaitTimeMinutes": 30,
+      "rampDownStopHostsWhen": "ZeroSessions",
+      "rampDownForceLogoffUsers": false,
+      "rampDownNotificationMessage": "This session host will be stopped by the Azure Virtual Desktop scaling plan.",
+      "avdUserObjectIds": "",
+      "desktopAccessAssignments": [],
+      "remoteAppAccessAssignments": [],
+      "brownfieldFslogixStorageAccountResourceId": "",
+      "brownfieldFslogixPrivateDnsZoneMode": "CreateNew",
+      "remoteApps": []
+    }
+  }
+}

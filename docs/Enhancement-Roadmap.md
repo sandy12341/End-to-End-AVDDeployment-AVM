@@ -193,5 +193,60 @@ Exit criteria:
 Implementation status:
 - Shared scenario contract is implemented in the canonical managed-app wizard.
 - Dedicated operator entrypoint wrappers now exist for existing-environment and day-2 flows.
-- Managed-app packaging now emits `app.zip`, `app-existing.zip`, and `app-day2.zip`.
-- Remaining work: publish the managed application definitions, expose the final operator portal URLs, and run the validation matrix for each entrypoint.
+- Managed-app packaging now emits `app-new.zip`, `app-existing.zip`, `app-day2.zip`, `app-addhosts.zip`, `app-scaling.zip`, `app-monitoring.zip`, and `app-summary.zip`.
+- Managed application definitions are published for new, existing, day-2, add-hosts, scaling, monitoring, and summary entrypoints.
+- Remaining work: run the focused-wizard validation matrix in the Azure Portal and capture evidence for each entrypoint.
+
+## Focused Wizard Refactor Tracking
+
+Purpose:
+- Freeze the current mega day-2 wizard and track the phased move to focused operator definitions.
+- Make outstanding work visible by phase, task, and status.
+
+Status legend:
+- `Completed`: landed and validated in the repo or portal surface.
+- `In Progress`: actively being implemented or validated.
+- `Not Started`: agreed and planned, but not yet implemented.
+- `Defined`: contract agreed, but implementation or validation is still pending.
+- `Deferred`: intentionally held until an earlier phase is complete.
+
+| Phase | Workstream | Task | Deliverable / Outcome | Status |
+| --- | --- | --- | --- | --- |
+| 0 | Stabilization | Freeze the current mega day-2 wizard for maintenance-only changes | No new action branches added to the shared day-2 CreateUiDefinition | Completed |
+| 0 | Stabilization | Keep only defect fixes and portal-runtime simplifications in the current wizard | Existing day-2 wizard remains usable while redesign work happens in parallel | Completed |
+| 1 | Information architecture | Redesign the operator journeys on paper before further UI branching | Approved task-first IA for deploy, expand, and operate lanes | Completed |
+| 1 | Information architecture | Finalize the focused action catalog for existing AVD operations | Canonical action list for scaling, session-host expansion, monitoring, FSLogix, and reporting | Completed |
+| 1 | Information architecture | Define naming and ownership for the new dedicated managed app definitions | Stable definition inventory and publish targets | Completed |
+| 2 | Contract design | Author the step-by-step contract for `Configure scaling plan` | Focused step map, prerequisites, inputs, review contract, and outputs | Completed |
+| 2 | Contract design | Author the step-by-step contract for `Add session hosts` | Focused step map, prerequisites, inputs, review contract, and outputs | Completed |
+| 2 | Contract design | Author the step-by-step contract for `Align monitoring posture` | Focused step map, prerequisites, inputs, review contract, and outputs | Completed |
+| 2 | Contract design | Author the step-by-step contract for `Generate operational summary` | Read-only step map with optional enrichments only | Completed |
+| 2 | Contract design | Produce a file-by-file refactor contract for the focused wizard split | Repo-level implementation map covering UI, Bicep, packaging, and publish steps | Completed |
+| 3 | Definition split | Create dedicated definition for `Configure scaling plan` | New managed app package and CreateUiDefinition with only scaling-relevant steps | Completed |
+| 3 | Definition split | Create dedicated definition for `Add session hosts` | New managed app package and CreateUiDefinition with only session-host expansion steps | Completed |
+| 3 | Definition split | Create dedicated definition for `Align monitoring posture` | New managed app package and CreateUiDefinition with only monitoring posture steps | Completed |
+| 3 | Definition split | Create dedicated definition for `Generate operational summary` | New managed app package and read-only CreateUiDefinition | Completed |
+| 3 | Definition split | Remove scenario-style empty pages from focused definitions | No empty scenario page in any focused operator wizard | In Progress |
+| 4 | Backend alignment | Reuse the shared Bicep solution core where it still makes sense | Focused definitions call the same backend orchestration without duplicating logic unnecessarily | Completed |
+| 4 | Backend alignment | Isolate any action-specific parameters that should no longer live in the shared mega wizard UI | Cleaner interface between focused CreateUiDefinitions and shared Bicep modules | In Progress |
+| 4 | Backend alignment | Preserve `Generate operational summary` as read-only by default | No write-capable controls in the base summary flow | Completed |
+| 5 | Packaging and publish | Extend packaging to emit the new focused managed app zip artifacts | New dist packages for scaling, add-hosts, monitoring, and summary | Completed |
+| 5 | Packaging and publish | Extend publish automation to register the new application definitions | Managed app definitions published alongside existing new/existing/day-2 entrypoints | Completed |
+| 5 | Packaging and publish | Expose final operator-facing portal URLs for each focused action | Documented portal entrypoints for operations teams | Completed |
+| 6 | UX validation | Validate that each focused wizard only shows relevant steps | No unrelated pages visible in the stepper for a selected action | In Progress |
+| 6 | UX validation | Validate pooled-host-only behavior for scaling-plan flows | Personal host pools are blocked or redirected appropriately | Not Started |
+| 6 | UX validation | Validate read-only behavior for operational summary | Summary flow produces outputs without creating or modifying resources | Not Started |
+| 6 | UX validation | Validate blast-radius messaging on review pages | Every focused wizard clearly states what it changes and what it does not change | Not Started |
+| 7 | Documentation | Update roadmap and operator docs to reflect the focused entrypoint model | Docs no longer describe the mega wizard as the long-term target UX | Completed |
+| 7 | Documentation | Add scenario matrix and validation evidence for each focused wizard | Traceable validation record for scaling, add-hosts, monitoring, and summary | Not Started |
+| 7 | Documentation | Document deprecation posture for the current mega day-2 wizard | Clear guidance on when to use legacy versus focused operator entrypoints | In Progress |
+
+### Recommended execution order
+
+| Sequence | Objective | Exit criteria |
+| --- | --- | --- |
+| 1 | Freeze the mega wizard | Only maintenance fixes continue in the shared day-2 definition |
+| 2 | Finalize IA and contracts | Focused wizard names, steps, and outputs are agreed |
+| 3 | Build the top 3 highest-volume focused definitions | Scaling, add-hosts, and monitoring entrypoints exist and package successfully |
+| 4 | Build the read-only operational summary definition | Summary flow is isolated from write operations and optional enrichments are explicit |
+| 5 | Publish and validate the focused entrypoints | Portal surfaces are published, tested, and documented |

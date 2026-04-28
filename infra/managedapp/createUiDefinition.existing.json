@@ -75,18 +75,11 @@
         "elements": [
           {
             "name": "deploymentScenario",
-            "type": "Microsoft.Common.DropDown",
-            "label": "What would you like to do?",
+            "type": "Microsoft.Common.TextBlock",
             "defaultValue": "ExpandExistingDeployment",
-            "toolTip": "This managed application is dedicated to expanding or updating an existing Azure Virtual Desktop deployment.",
-            "constraints": {
-              "required": true,
-              "allowedValues": [
-                {
-                  "label": "Expand or update existing AVD deployment",
-                  "value": "ExpandExistingDeployment"
-                }
-              ]
+            "visible": true,
+            "options": {
+              "text": "This wizard is dedicated to expansion actions for an existing Azure Virtual Desktop deployment. The action scope is fixed, so no scenario selection is required."
             }
           },
           {
@@ -180,7 +173,7 @@
             "type": "Microsoft.Common.TextBlock",
             "visible": "[or(contains(steps('brownfieldTarget').appGroupsApi, 'value'), contains(steps('brownfieldTarget').workspacesApi, 'value'))]",
             "options": {
-              "text": "[concat('Discovered related app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)))), '. Discovered related workspaces: ', string(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)))), '.')]"
+              "text": "[concat('Related app groups in the selected host pool resource group: ', if(greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id))), 0), join(map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)), (appGroup) => appGroup.name), ', '), 'None discovered in the selected host pool resource group'), '. Related workspaces in the selected host pool resource group: ', if(greater(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0))), 0), join(map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)), (workspace) => workspace.name), ', '), 'None discovered in the selected host pool resource group'), '.')]"
             }
           },
           {
@@ -188,7 +181,7 @@
             "type": "Microsoft.Common.TextBlock",
             "visible": "[contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value')]",
             "options": {
-              "text": "[if(greater(length(steps('brownfieldTarget').hostPoolDiagnosticsApi.value), 0), 'Existing host pool diagnostic settings detected for the selected host pool.', 'No host pool diagnostic settings detected for the selected host pool.')]"
+              "text": "[if(greater(length(steps('brownfieldTarget').hostPoolDiagnosticsApi.value), 0), concat('Host pool diagnostic settings: ', join(map(steps('brownfieldTarget').hostPoolDiagnosticsApi.value, (setting) => setting.name), ', '), '.'), 'Host pool diagnostic settings: none detected.')]"
             }
           },
           {
@@ -223,7 +216,7 @@
                   "value": "AlignMonitoringPosture"
                 },
                 {
-                  "label": "Remediate VM/image baseline with replacement hosts",
+                  "label": "Stage new session hosts with a replacement VM/image baseline",
                   "value": "RemediateVmImageBaseline"
                 }
               ]
@@ -233,7 +226,7 @@
             "name": "expandOperationNote",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "Expand Existing Deployment now supports adding session hosts, aligning monitoring posture, or staging replacement session hosts with a new VM/image baseline without recreating the rest of the environment."
+              "text": "Expand Existing Deployment supports adding session hosts, aligning monitoring posture, or staging new session hosts with a replacement VM/image baseline. Existing hosts are not drained or removed automatically by this action."
             }
           }
         ]
@@ -889,14 +882,14 @@
             "name": "brownfieldReviewSummary",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "[if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AddSessionHosts')), concat('Action: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) to existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing host pool, workspace, app groups, storage, and scaling plan resources are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Control-plane diagnostics will target ', if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), concat('a new workspace named ', steps('monitoringSettings').monitoringWorkspaceName), 'the selected existing Log Analytics workspace'), '.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'ExpandExistingDeployment'), equals(steps('expandOperation').expandOperation, 'RemediateVmImageBaseline')), concat('Action: stage ', string(steps('instanceDetails').sessionHostCount), ' replacement session host(s) with the requested VM/image baseline for host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing hosts are not removed automatically.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ConfigureScalingPlan')), concat('Action: ', if(greater(length(filter(steps('brownfieldTarget').scalingPlansApi.value, (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id))), 0), 'update the existing scaling plan attachment', 'create and attach a scaling plan'), ' for pooled host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'AlignMonitoringPosture')), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Session hosts are not recreated.'), if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'UpdateAccessAssignments')), 'Action: update access assignments across the discovered application groups.', if(and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity')), 'Action: reconcile FSLogix storage private connectivity by creating a private endpoint and applying the selected DNS mode.', 'Action: generate a no-change operational summary for the selected brownfield target.'))))))]"
+              "text": "[if(equals(steps('expandOperation').expandOperation, 'AddSessionHosts'), concat('Action: add ', string(steps('instanceDetails').sessionHostCount), ' session host(s) to existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing host pool, workspace, app groups, storage, and scaling plan resources are not recreated.'), if(equals(steps('expandOperation').expandOperation, 'AlignMonitoringPosture'), concat('Action: align monitoring posture for existing host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Control-plane diagnostics will target ', if(equals(steps('monitoringSettings').monitoringWorkspaceMode, 'CreateNew'), concat('a new workspace named ', steps('monitoringSettings').monitoringWorkspaceName), 'the selected existing Log Analytics workspace'), '.'), concat('Action: stage ', string(steps('instanceDetails').sessionHostCount), ' new session host(s) with the requested replacement VM/image baseline for host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, ''), '. Existing hosts are not drained or removed automatically.'))) ]"
             }
           },
           {
             "name": "brownfieldReviewDetails",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "[concat('Target host pool resource group: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '. Detected host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '. Related app groups: ', string(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)))), '. Related workspaces: ', string(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)))), '.')]"
+              "text": "[concat('Target host pool resource group: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), ''), '. Detected host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '. Related app groups: ', if(greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id))), 0), join(map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id)), (appGroup) => appGroup.name), ', '), 'None discovered in the selected host pool resource group'), '. Related workspaces: ', if(greater(length(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0))), 0), join(map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, take(split('x', ','), 0)), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, take(split('x', ','), 0)), (appGroup) => and(equals(appGroup.properties.hostPoolArmPath, steps('brownfieldTarget').selectedHostPool.id), contains(string(workspace.properties.applicationGroupReferences), appGroup.id)))), 0)), (workspace) => workspace.name), ', '), 'None discovered in the selected host pool resource group'), '.')]"
             }
           }
         ]

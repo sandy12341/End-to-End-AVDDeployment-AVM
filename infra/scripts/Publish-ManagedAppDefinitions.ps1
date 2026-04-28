@@ -18,9 +18,25 @@ param(
     [Parameter(Mandatory)]
     [string]$Day2PackageFileUri,
 
+    [Parameter(Mandatory)]
+    [string]$AddSessionHostsPackageFileUri,
+
+    [Parameter(Mandatory)]
+    [string]$ScalingPackageFileUri,
+
+    [Parameter(Mandatory)]
+    [string]$MonitoringPackageFileUri,
+
+    [Parameter(Mandatory)]
+    [string]$SummaryPackageFileUri,
+
     [string]$NewEnvironmentDefinitionName = 'avd-new-environment-avm',
     [string]$ExistingEnvironmentDefinitionName = 'avd-manage-existing-avm',
     [string]$Day2DefinitionName = 'avd-day2-operations-avm',
+    [string]$AddSessionHostsDefinitionName = 'avd-add-session-hosts-avm',
+    [string]$ScalingDefinitionName = 'avd-configure-scaling-avm',
+    [string]$MonitoringDefinitionName = 'avd-align-monitoring-avm',
+    [string]$SummaryDefinitionName = 'avd-operational-summary-avm',
     [string]$RoleDefinitionId = '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
     [string]$LockLevel = 'ReadOnly',
     [switch]$WhatIf
@@ -49,6 +65,14 @@ $parametersPayload = @{
         existingEnvironmentPackageFileUri = @{ value = $ExistingEnvironmentPackageFileUri }
         day2DefinitionName = @{ value = $Day2DefinitionName }
         day2PackageFileUri = @{ value = $Day2PackageFileUri }
+        addSessionHostsDefinitionName = @{ value = $AddSessionHostsDefinitionName }
+        addSessionHostsPackageFileUri = @{ value = $AddSessionHostsPackageFileUri }
+        scalingDefinitionName = @{ value = $ScalingDefinitionName }
+        scalingPackageFileUri = @{ value = $ScalingPackageFileUri }
+        monitoringDefinitionName = @{ value = $MonitoringDefinitionName }
+        monitoringPackageFileUri = @{ value = $MonitoringPackageFileUri }
+        summaryDefinitionName = @{ value = $SummaryDefinitionName }
+        summaryPackageFileUri = @{ value = $SummaryPackageFileUri }
     }
 }
 

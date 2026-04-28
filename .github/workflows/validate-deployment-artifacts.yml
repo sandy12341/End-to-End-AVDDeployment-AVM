@@ -41,9 +41,13 @@ jobs:
             'infra/azuredeploy.json',
             'infra/managedapp/dist/mainTemplate.json',
             'infra/managedapp/dist/deployDefinition.json',
-            'infra/managedapp/dist/app.zip',
-            'infra/managedapp/dist/package/mainTemplate.json',
-            'infra/managedapp/dist/package/createUiDefinition.json'
+            'infra/managedapp/dist/app-new.zip',
+            'infra/managedapp/dist/app-existing.zip',
+            'infra/managedapp/dist/app-day2.zip',
+            'infra/managedapp/dist/app-addhosts.zip',
+            'infra/managedapp/dist/app-scaling.zip',
+            'infra/managedapp/dist/app-monitoring.zip',
+            'infra/managedapp/dist/app-summary.zip'
           )
 
           foreach ($requiredFile in $requiredFiles) {
@@ -52,25 +56,37 @@ jobs:
             }
           }
 
-      - name: Validate app.zip contents
+      - name: Validate managed app package contents
         shell: pwsh
         run: |
-          $zipPath = 'infra/managedapp/dist/app.zip'
-          $extractPath = Join-Path $env:RUNNER_TEMP 'managedapp-package'
-
-          if (Test-Path $extractPath) {
-            Remove-Item -Recurse -Force $extractPath
-          }
-
-          Expand-Archive -Path $zipPath -DestinationPath $extractPath
-
-          $requiredFiles = @(
-            'mainTemplate.json',
-            'createUiDefinition.json'
+          $packageNames = @(
+            'app-new.zip',
+            'app-existing.zip',
+            'app-day2.zip',
+            'app-addhosts.zip',
+            'app-scaling.zip',
+            'app-monitoring.zip',
+            'app-summary.zip'
           )
 
-          foreach ($requiredFile in $requiredFiles) {
-            if (-not (Test-Path (Join-Path $extractPath $requiredFile))) {
-              throw "Managed app package is missing $requiredFile"
+          foreach ($packageName in $packageNames) {
+            $zipPath = Join-Path 'infra/managedapp/dist' $packageName
+            $extractPath = Join-Path $env:RUNNER_TEMP ([System.IO.Path]::GetFileNameWithoutExtension($packageName))
+
+            if (Test-Path $extractPath) {
+              Remove-Item -Recurse -Force $extractPath
+            }
+
+            Expand-Archive -Path $zipPath -DestinationPath $extractPath
+
+            $requiredFiles = @(
+              'mainTemplate.json',
+              'createUiDefinition.json'
+            )
+
+            foreach ($requiredFile in $requiredFiles) {
+              if (-not (Test-Path (Join-Path $extractPath $requiredFile))) {
+                throw "Managed app package $packageName is missing $requiredFile"
+              }
             }
           }

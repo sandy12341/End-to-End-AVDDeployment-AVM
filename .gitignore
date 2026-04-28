@@ -17,18 +17,19 @@ Thumbs.db
 
 # Scratch Bicep build outputs
 /infra/main.json
+/infra/solution/avdDeploymentCore.json
 /infra/managedapp/mainTemplate.json
 /infra/managedapp/deployDefinition.json
 
 # Local planning artifacts
 /.azure/
+/.tmp/
 
 # Generated managed app build outputs
-/infra/managedapp/dist/app-new.zip
-/infra/managedapp/dist/app-existing.zip
-/infra/managedapp/dist/app-day2.zip
+/infra/managedapp/dist/*.zip
+/infra/managedapp/dist/mainTemplate.json
+/infra/managedapp/dist/deployDefinition.json
 /infra/managedapp/dist/deployDefinitions.json
 /infra/managedapp/dist/packageStorage.json
-/infra/managedapp/dist/package-new/
-/infra/managedapp/dist/package-existing/
-/infra/managedapp/dist/package-day2/
+/infra/managedapp/dist/package/
+/infra/managedapp/dist/package-*/
