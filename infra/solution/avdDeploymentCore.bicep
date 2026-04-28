@@ -166,6 +166,15 @@ param relatedDesktopApplicationGroupNames array = []
 @description('Existing RemoteApp application groups related to the selected host pool.')
 param relatedRemoteAppApplicationGroupNames array = []
 
+@description('Detected related application group resource IDs for the selected host pool.')
+param brownfieldDetectedRelatedApplicationGroupIds array = []
+
+@description('Detected related desktop application group resource IDs for the selected host pool.')
+param brownfieldDetectedRelatedDesktopApplicationGroupIds array = []
+
+@description('Detected related RemoteApp application group resource IDs for the selected host pool.')
+param brownfieldDetectedRelatedRemoteAppApplicationGroupIds array = []
+
 @description('Detected load balancer type for the selected brownfield host pool.')
 param brownfieldDetectedLoadBalancerType string = ''
 
@@ -213,6 +222,9 @@ param brownfieldDetectedScalingPlansWithDiagnostics array = []
 
 @description('Detected subscription-scope Desktop Virtualization Power On Off Contributor assignments in the current subscription.')
 param brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount int = 0
+
+@description('Detected application-group-scoped role assignments in the current subscription.')
+param brownfieldDetectedSubscriptionApplicationGroupAssignments array = []
 
 @description('Detected role assignment count across related desktop application groups.')
 param brownfieldDetectedDesktopAssignmentCount int = 0
@@ -426,6 +438,19 @@ var operationalSummaryLoadBalancerType = empty(brownfieldDetectedLoadBalancerTyp
 var operationalSummaryPreferredAppGroupType = empty(brownfieldDetectedPreferredAppGroupType) ? 'Unknown' : brownfieldDetectedPreferredAppGroupType
 var operationalSummaryAuthenticationType = empty(brownfieldDetectedAuthenticationType) ? 'Unknown' : brownfieldDetectedAuthenticationType
 var operationalSummaryFslogixAssessmentProvided = !empty(brownfieldDetectedFslogixStorageAccountResourceId)
+var brownfieldDetectedScopedApplicationGroupAssignments = filter(brownfieldDetectedSubscriptionApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedApplicationGroupIds, assignment.scope))
+var effectiveBrownfieldDetectedDesktopAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
+  ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedDesktopApplicationGroupIds, assignment.scope)))
+  : brownfieldDetectedDesktopAssignmentCount
+var effectiveBrownfieldDetectedRemoteAppAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
+  ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedRemoteAppApplicationGroupIds, assignment.scope)))
+  : brownfieldDetectedRemoteAppAssignmentCount
+var effectiveBrownfieldDetectedDirectUserAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
+  ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => assignment.principalType == 'User'))
+  : brownfieldDetectedDirectUserAssignmentCount
+var effectiveBrownfieldDetectedGroupAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
+  ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => assignment.principalType == 'Group'))
+  : brownfieldDetectedGroupAssignmentCount
 var operationalSummaryFindings = concat(
   isDay2GenerateOperationalSummary && length(brownfieldDetectedHostPoolDiagnosticSettingNames) == 0 ? [
     {
@@ -596,7 +621,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
+  isDay2GenerateOperationalSummary && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
     {
       code: 'APPLICATION_GROUP_ASSIGNMENTS_MISSING'
       severity: 'High'
@@ -609,7 +634,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'UpdateAccessAssignments'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && brownfieldDetectedDirectUserAssignmentCount > 0 ? [
+  isDay2GenerateOperationalSummary && effectiveBrownfieldDetectedDirectUserAssignmentCount > 0 ? [
     {
       code: 'DIRECT_USER_ASSIGNMENTS_DETECTED'
       severity: 'Low'
@@ -791,11 +816,11 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
       }
       identityPosture: {
         authenticationType: operationalSummaryAuthenticationType
-        desktopAssignmentCount: brownfieldDetectedDesktopAssignmentCount
-        remoteAppAssignmentCount: brownfieldDetectedRemoteAppAssignmentCount
-        directUserAssignmentCount: brownfieldDetectedDirectUserAssignmentCount
-        groupAssignmentCount: brownfieldDetectedGroupAssignmentCount
-        accessAssignmentsState: (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal'
+        desktopAssignmentCount: effectiveBrownfieldDetectedDesktopAssignmentCount
+        remoteAppAssignmentCount: effectiveBrownfieldDetectedRemoteAppAssignmentCount
+        directUserAssignmentCount: effectiveBrownfieldDetectedDirectUserAssignmentCount
+        groupAssignmentCount: effectiveBrownfieldDetectedGroupAssignmentCount
+        accessAssignmentsState: (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal'
       }
       fslogixPosture: {
         assessmentState: operationalSummaryFslogixAssessmentProvided ? 'Assessed' : 'NotAssessed'

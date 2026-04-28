@@ -37,6 +37,15 @@ param relatedDesktopApplicationGroupNames array = []
 @description('Existing RemoteApp application groups related to the selected host pool.')
 param relatedRemoteAppApplicationGroupNames array = []
 
+@description('Detected related application group resource IDs for the selected host pool.')
+param brownfieldDetectedRelatedApplicationGroupIds array = []
+
+@description('Detected related desktop application group resource IDs for the selected host pool.')
+param brownfieldDetectedRelatedDesktopApplicationGroupIds array = []
+
+@description('Detected related RemoteApp application group resource IDs for the selected host pool.')
+param brownfieldDetectedRelatedRemoteAppApplicationGroupIds array = []
+
 @description('Detected load balancer type for the selected brownfield host pool.')
 param brownfieldDetectedLoadBalancerType string = ''
 
@@ -84,6 +93,9 @@ param brownfieldDetectedScalingPlansWithDiagnostics array = []
 
 @description('Detected subscription-scope Desktop Virtualization Power On Off Contributor assignments in the current subscription.')
 param brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount int = 0
+
+@description('Detected application-group-scoped role assignments in the current subscription.')
+param brownfieldDetectedSubscriptionApplicationGroupAssignments array = []
 
 @description('Detected role assignment count across related desktop application groups.')
 param brownfieldDetectedDesktopAssignmentCount int = 0
@@ -429,6 +441,9 @@ module sharedSolution '../solution/avdDeploymentCore.bicep' = {
     relatedApplicationGroupNames: relatedApplicationGroupNames
     relatedDesktopApplicationGroupNames: relatedDesktopApplicationGroupNames
     relatedRemoteAppApplicationGroupNames: relatedRemoteAppApplicationGroupNames
+    brownfieldDetectedRelatedApplicationGroupIds: brownfieldDetectedRelatedApplicationGroupIds
+    brownfieldDetectedRelatedDesktopApplicationGroupIds: brownfieldDetectedRelatedDesktopApplicationGroupIds
+    brownfieldDetectedRelatedRemoteAppApplicationGroupIds: brownfieldDetectedRelatedRemoteAppApplicationGroupIds
     brownfieldDetectedLoadBalancerType: brownfieldDetectedLoadBalancerType
     brownfieldDetectedPreferredAppGroupType: brownfieldDetectedPreferredAppGroupType
     brownfieldDetectedAuthenticationType: brownfieldDetectedAuthenticationType
@@ -445,6 +460,7 @@ module sharedSolution '../solution/avdDeploymentCore.bicep' = {
     brownfieldDetectedDataCollectionRuleNames: brownfieldDetectedDataCollectionRuleNames
     brownfieldDetectedScalingPlansWithDiagnostics: brownfieldDetectedScalingPlansWithDiagnostics
     brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount: brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount
+    brownfieldDetectedSubscriptionApplicationGroupAssignments: brownfieldDetectedSubscriptionApplicationGroupAssignments
     brownfieldDetectedDesktopAssignmentCount: brownfieldDetectedDesktopAssignmentCount
     brownfieldDetectedRemoteAppAssignmentCount: brownfieldDetectedRemoteAppAssignmentCount
     brownfieldDetectedDirectUserAssignmentCount: brownfieldDetectedDirectUserAssignmentCount
