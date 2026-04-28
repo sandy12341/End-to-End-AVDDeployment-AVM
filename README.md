@@ -4,18 +4,15 @@ Parallel modernization lane for the Azure Virtual Desktop deployment. This repo 
 
 ## Deploy to Azure
 
-### Three Entry Points
+### Validation Lane And Managed App Entry Points
 
-This repo now separates greenfield validation from operator workflows. The raw-template button remains the stable engineering validation lane, while the brownfield and day-2 paths are carried by Azure Managed Application definitions.
+This repo now separates the internal raw-template validation lane from the published Azure Managed Application entrypoints. Prefer the focused managed-app definitions for routine operator workflows. The broader existing-environment and day-2 definitions are retained only as compatibility surfaces.
 
-#### 1. Deploy New Environment
+#### 1. Internal Validation Lane: Deploy New Environment
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.validation.v2.json)
 
 Current target: stable raw-template validation lane.
-
-Published managed app definition:
-- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm`
 
 Use this entrypoint for:
 - new environment deployment validation
@@ -28,7 +25,97 @@ What you get:
 - VNet and subnet dropdowns for validation scenarios
 - image source selection for Marketplace or Azure Compute Gallery
 
-#### 2. Manage Existing AVD Deployment
+#### 2. Managed App: Deploy New Environment
+
+[![Open Deploy New Environment](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm/overview)
+
+- Definition name: `avd-new-environment-avm`
+- Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm`
+- Package artifact: `infra/managedapp/dist/app-new.zip`
+- UI wrapper: `infra/managedapp/createUiDefinition.new.json`
+- Use this entrypoint for managed-app greenfield deployment after the definition is published.
+
+Portal behavior:
+- opens the published application definition in Azure Portal
+- from that blade, select `Deploy from definition` to launch the deployment wizard
+
+#### 3. Managed App: Add Session Hosts
+
+[![Open Add Session Hosts](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm/overview)
+
+Managed application definition: `avd-add-session-hosts-avm`
+
+Live definition ID:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm`
+
+Use this entrypoint for:
+- add session hosts to an existing host pool
+- choose marketplace or gallery images for expansion hosts
+- select Entra ID or Hybrid Join for the new hosts
+
+Publication status:
+- package artifact: `infra/managedapp/dist/app-addhosts.zip`
+- UI definition: `infra/managedapp/createUiDefinition.addhosts.json`
+- definition published in `rg-avd-managedapp-def-avm`
+
+#### 4. Managed App: Configure Scaling Plan
+
+[![Open Configure Scaling Plan](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm/overview)
+
+Managed application definition: `avd-configure-scaling-avm`
+
+Live definition ID:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm`
+
+Use this entrypoint for:
+- validate pooled-host-pool eligibility for scaling
+- create or align the host pool scaling-plan association
+- review blast radius before applying plan settings
+
+Publication status:
+- package artifact: `infra/managedapp/dist/app-scaling.zip`
+- UI definition: `infra/managedapp/createUiDefinition.scaling.json`
+- definition published in `rg-avd-managedapp-def-avm`
+
+#### 5. Managed App: Align Monitoring Posture
+
+[![Open Align Monitoring Posture](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm/overview)
+
+Managed application definition: `avd-align-monitoring-avm`
+
+Live definition ID:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm`
+
+Use this entrypoint for:
+- align control-plane diagnostics for brownfield AVD resources
+- optionally onboard existing session host VMs to the guest-monitoring posture
+- apply the standard or enhanced guest telemetry preset
+
+Publication status:
+- package artifact: `infra/managedapp/dist/app-monitoring.zip`
+- UI definition: `infra/managedapp/createUiDefinition.monitoring.json`
+- definition published in `rg-avd-managedapp-def-avm`
+
+#### 6. Managed App: Generate Operational Summary
+
+[![Open Generate Operational Summary](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview)
+
+Managed application definition: `avd-operational-summary-avm`
+
+Live definition ID:
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm`
+
+Use this entrypoint for:
+- inspect the brownfield operational summary without changing deployment shape
+- optionally enrich the review with FSLogix-related inputs
+- generate a read-only posture snapshot before remediation work
+
+Publication status:
+- package artifact: `infra/managedapp/dist/app-summary.zip`
+- UI definition: `infra/managedapp/createUiDefinition.summary.json`
+- definition published in `rg-avd-managedapp-def-avm`
+
+#### 7. Legacy Compatibility: Manage Existing AVD Deployment
 
 [![Open Manage Existing AVD Deployment](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview)
 
@@ -51,7 +138,7 @@ Publication status:
 - UI definition: `infra/managedapp/createUiDefinition.existing.json`
 - definition published in `rg-avd-managedapp-def-avm`
 
-#### 3. Launch Day-2 Operations
+#### 8. Legacy Compatibility: Launch Day-2 Operations
 
 [![Open Launch Day-2 Operations](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview)
 
@@ -82,21 +169,22 @@ Publication status:
 - UI definition: `infra/managedapp/createUiDefinition.day2.json`
 - definition published in `rg-avd-managedapp-def-avm`
 
-This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or package URI here.
+This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or any earlier GitHub-release package URI here.
 
 **Managed App Details for the AVM lane:**
-- Publish separate managed application definitions for new environment, existing deployment management, and day-2 operations.
+- Publish separate managed application definitions for new environment, add-hosts, scaling, monitoring, summary, and the retained compatibility wrappers.
 - Use separate package URIs from the stable lane.
 - Recommended definitions:
 - `avd-new-environment-avm`
+- `avd-add-session-hosts-avm`
+- `avd-configure-scaling-avm`
+- `avd-align-monitoring-avm`
+- `avd-operational-summary-avm`
 - `avd-manage-existing-avm`
 - `avd-day2-operations-avm`
 - Recommended validation resource group: `rg-avd-managedapp-def-avm`
 - Public customer entrypoint: managed application portal experience
 - Internal engineering entrypoint: direct template validation only
-
-Current package release:
-- `https://github.com/sandy12341/End-to-End-AVDDeployment-AVM/releases/tag/managedapp-packages-20260425`
 
 Operator walkthroughs for the brownfield and day-2 flows are documented in [docs/Deployment-Manual.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/Deployment-Manual.md).
 
@@ -165,16 +253,22 @@ The repository includes pre-built **Azure Managed Application** infrastructure (
 ### Managed App Files
 
 - **`mainTemplate.bicep`** - AVD infrastructure template (uses an existing VNet or creates a new spoke VNet with hub peering)
-- **`createUiDefinition.json`** - Canonical managed-app portal wizard UI
 - **`createUiDefinition.new.json`** - New-environment operator entrypoint wrapper
 - **`createUiDefinition.existing.json`** - Existing-environment operator entrypoint wrapper
 - **`createUiDefinition.day2.json`** - Day-2 operator entrypoint wrapper
+- **`createUiDefinition.addhosts.json`** - Focused add-session-hosts operator entrypoint
+- **`createUiDefinition.scaling.json`** - Focused scaling-plan operator entrypoint
+- **`createUiDefinition.monitoring.json`** - Focused monitoring-alignment operator entrypoint
+- **`createUiDefinition.summary.json`** - Focused operational-summary operator entrypoint
 - **`deployDefinition.bicep`** - Single managed application definition template
-- **`deployDefinitions.bicep`** - Three-definition publish orchestrator
-- **`dist/app.zip`** - Generic managed-app package
+- **`deployDefinitions.bicep`** - Seven-definition publish orchestrator
 - **`dist/app-new.zip`** - New-environment managed-app package
 - **`dist/app-existing.zip`** - Existing-environment managed-app package
 - **`dist/app-day2.zip`** - Day-2 managed-app package
+- **`dist/app-addhosts.zip`** - Add-session-hosts managed-app package
+- **`dist/app-scaling.zip`** - Scaling-plan managed-app package
+- **`dist/app-monitoring.zip`** - Monitoring-alignment managed-app package
+- **`dist/app-summary.zip`** - Operational-summary managed-app package
 
 ### How It Works
 
@@ -201,23 +295,9 @@ To republish to a different Azure AD tenant or subscription:
 # 1. Update Bicep templates as needed
 # 2. Build the direct-template and managed-app artifacts deterministically
 pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
-
-# 3. Upload infra/managedapp/dist/app.zip to your blob storage or GitHub release
-# 4. Deploy managedApplicationDefinition to shared subscription
-PACKAGE_URI="https://your-storage-account.blob.core.windows.net/container/app.zip"
-PRINCIPAL_ID="$(az ad signed-in-user show --query id -o tsv)"
-
-az group create -n rg-avd-managedapp-def -l westus3
-
-az deployment group create \
-  -g rg-avd-managedapp-def \
-  --template-file infra/managedapp/deployDefinition.bicep \
-  --parameters \
-    managedApplicationDefinitionName='avd-existing-network-avm' \
-    definitionDisplayName='Azure Virtual Desktop + ALZ (AVM)' \
-    packageFileUri="$PACKAGE_URI" \
-    principalId="$PRINCIPAL_ID"
 ```
+
+Then follow [docs/ManagedApp-Publishing.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/docs/ManagedApp-Publishing.md) to upload the seven focused package artifacts to Azure Blob Storage and publish the managed application definitions with [infra/scripts/Publish-ManagedAppDefinitions.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Publish-ManagedAppDefinitions.ps1).
 
 ### Deploying a Managed Application Instance
 

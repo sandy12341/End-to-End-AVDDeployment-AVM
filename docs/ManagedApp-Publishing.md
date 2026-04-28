@@ -1,12 +1,33 @@
 # Managed Application Publishing
 
-This runbook publishes the three managed application entrypoints used by this repo:
+This runbook publishes the managed application entrypoints used by this repo:
 
 1. `Deploy New Environment`
 2. `Manage Existing AVD Deployment`
 3. `Launch Day-2 Operations`
+4. `Configure Scaling Plan`
+5. `Align Monitoring Posture`
+6. `Generate Operational Summary`
+7. `Add Session Hosts`
 
 It assumes the build artifacts already come from [infra/scripts/Build-DeploymentArtifacts.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Build-DeploymentArtifacts.ps1) and the definitions are published through [infra/scripts/Publish-ManagedAppDefinitions.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Publish-ManagedAppDefinitions.ps1).
+
+## Launch From This Repo
+
+Use these links when you want to launch directly from the repository documentation instead of searching in Azure Portal.
+
+| Entry point | Launch surface | Launch link | Notes |
+|---|---|---|---|
+| Internal validation lane | Raw-template custom deployment | [Deploy to Azure](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsandy12341%2FEnd-to-End-AVDDeployment-AVM%2Fmaster%2Finfra%2FcreateUiDefinition.validation.v2.json) | Engineering validation only. Use this for parity testing and break-glass troubleshooting. |
+| Deploy New Environment | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm/overview) | Greenfield managed-app deployment. From the blade, select `Deploy from definition`. |
+| Add Session Hosts | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm/overview) | Brownfield host-pool expansion. |
+| Configure Scaling Plan | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm/overview) | Pooled host-pool scaling alignment. |
+| Align Monitoring Posture | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm/overview) | Control-plane and optional guest-monitoring alignment. |
+| Generate Operational Summary | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview) | Read-only brownfield posture review. |
+| Manage Existing AVD Deployment | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview) | Legacy compatibility wrapper. |
+| Launch Day-2 Operations | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview) | Legacy compatibility wrapper. |
+
+The live launch inventory in [README.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/README.md) should stay aligned with this table.
 
 ## Package URI Map
 
@@ -17,8 +38,12 @@ Use one stable HTTPS URI per package artifact.
 | Deploy New Environment | `avd-new-environment-avm` | `infra/managedapp/dist/app-new.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-new.zip?<sas>` |
 | Manage Existing AVD Deployment | `avd-manage-existing-avm` | `infra/managedapp/dist/app-existing.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-existing.zip?<sas>` |
 | Launch Day-2 Operations | `avd-day2-operations-avm` | `infra/managedapp/dist/app-day2.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-day2.zip?<sas>` |
+| Add Session Hosts | `avd-add-session-hosts-avm` | `infra/managedapp/dist/app-addhosts.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-addhosts.zip?<sas>` |
+| Configure Scaling Plan | `avd-configure-scaling-avm` | `infra/managedapp/dist/app-scaling.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-scaling.zip?<sas>` |
+| Align Monitoring Posture | `avd-align-monitoring-avm` | `infra/managedapp/dist/app-monitoring.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-monitoring.zip?<sas>` |
+| Generate Operational Summary | `avd-operational-summary-avm` | `infra/managedapp/dist/app-summary.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-summary.zip?<sas>` |
 
-If you prefer GitHub Releases instead of Blob Storage, map the same three files to three immutable release asset URLs.
+If you prefer GitHub Releases instead of Blob Storage, map the same seven files to seven immutable release asset URLs.
 
 ## Recommended Publish Inputs
 
@@ -34,6 +59,10 @@ $PrincipalId = '<entra-object-id>'
 $NewEnvironmentPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-new.zip?<sas>'
 $ExistingEnvironmentPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-existing.zip?<sas>'
 $Day2PackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-day2.zip?<sas>'
+$AddSessionHostsPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-addhosts.zip?<sas>'
+$ScalingPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-scaling.zip?<sas>'
+$MonitoringPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-monitoring.zip?<sas>'
+$SummaryPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-summary.zip?<sas>'
 ```
 
 ## Current Environment Starter Block
@@ -61,6 +90,10 @@ $ContainerName = 'managedapp-packages'
 $NewEnvironmentDefinitionName = 'avd-new-environment-avm'
 $ExistingEnvironmentDefinitionName = 'avd-manage-existing-avm'
 $Day2DefinitionName = 'avd-day2-operations-avm'
+$AddSessionHostsDefinitionName = 'avd-add-session-hosts-avm'
+$ScalingDefinitionName = 'avd-configure-scaling-avm'
+$MonitoringDefinitionName = 'avd-align-monitoring-avm'
+$SummaryDefinitionName = 'avd-operational-summary-avm'
 ```
 
 At update time, `stavdmapkg830ef64901` passed `az storage account check-name` in the current tenant and subscription context.
@@ -79,10 +112,13 @@ pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
 
 Expected outputs:
 
-- `infra/managedapp/dist/app.zip`
 - `infra/managedapp/dist/app-new.zip`
 - `infra/managedapp/dist/app-existing.zip`
 - `infra/managedapp/dist/app-day2.zip`
+- `infra/managedapp/dist/app-addhosts.zip`
+- `infra/managedapp/dist/app-scaling.zip`
+- `infra/managedapp/dist/app-monitoring.zip`
+- `infra/managedapp/dist/app-summary.zip`
 - `infra/managedapp/dist/deployDefinitions.json`
 
 ## Step 1.5: Provision Dedicated Package Storage
@@ -144,14 +180,6 @@ az storage blob upload \
 az storage blob upload \
   --account-name $StorageAccountName \
   --container-name $ContainerName \
-  --name app.zip \
-  --file infra/managedapp/dist/app.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
   --name app-existing.zip \
   --file infra/managedapp/dist/app-existing.zip \
   --overwrite true \
@@ -162,6 +190,38 @@ az storage blob upload \
   --container-name $ContainerName \
   --name app-day2.zip \
   --file infra/managedapp/dist/app-day2.zip \
+  --overwrite true \
+  --auth-mode login
+
+az storage blob upload \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-addhosts.zip \
+  --file infra/managedapp/dist/app-addhosts.zip \
+  --overwrite true \
+  --auth-mode login
+
+az storage blob upload \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-scaling.zip \
+  --file infra/managedapp/dist/app-scaling.zip \
+  --overwrite true \
+  --auth-mode login
+
+az storage blob upload \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-monitoring.zip \
+  --file infra/managedapp/dist/app-monitoring.zip \
+  --overwrite true \
+  --auth-mode login
+
+az storage blob upload \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-summary.zip \
+  --file infra/managedapp/dist/app-summary.zip \
   --overwrite true \
   --auth-mode login
 ```
@@ -204,9 +264,57 @@ $Day2Sas = az storage blob generate-sas \
   --auth-mode login \
   -o tsv
 
+$AddSessionHostsSas = az storage blob generate-sas \
+  --as-user \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-addhosts.zip \
+  --permissions r \
+  --expiry $Expiry \
+  --https-only \
+  --auth-mode login \
+  -o tsv
+
+$ScalingSas = az storage blob generate-sas \
+  --as-user \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-scaling.zip \
+  --permissions r \
+  --expiry $Expiry \
+  --https-only \
+  --auth-mode login \
+  -o tsv
+
+$MonitoringSas = az storage blob generate-sas \
+  --as-user \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-monitoring.zip \
+  --permissions r \
+  --expiry $Expiry \
+  --https-only \
+  --auth-mode login \
+  -o tsv
+
+$SummarySas = az storage blob generate-sas \
+  --as-user \
+  --account-name $StorageAccountName \
+  --container-name $ContainerName \
+  --name app-summary.zip \
+  --permissions r \
+  --expiry $Expiry \
+  --https-only \
+  --auth-mode login \
+  -o tsv
+
 $NewEnvironmentPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-new.zip?$NewEnvironmentSas"
 $ExistingEnvironmentPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-existing.zip?$ExistingEnvironmentSas"
 $Day2PackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-day2.zip?$Day2Sas"
+$AddSessionHostsPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-addhosts.zip?$AddSessionHostsSas"
+$ScalingPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-scaling.zip?$ScalingSas"
+$MonitoringPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-monitoring.zip?$MonitoringSas"
+$SummaryPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-summary.zip?$SummarySas"
 ```
 
 ## Step 3: Preview The Definition Deployment
@@ -221,6 +329,10 @@ pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
   -NewEnvironmentPackageFileUri $NewEnvironmentPackageFileUri \
   -ExistingEnvironmentPackageFileUri $ExistingEnvironmentPackageFileUri \
   -Day2PackageFileUri $Day2PackageFileUri \
+  -AddSessionHostsPackageFileUri $AddSessionHostsPackageFileUri \
+  -ScalingPackageFileUri $ScalingPackageFileUri \
+  -MonitoringPackageFileUri $MonitoringPackageFileUri \
+  -SummaryPackageFileUri $SummaryPackageFileUri \
   -WhatIf
 ```
 
@@ -233,10 +345,14 @@ pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
   -PrincipalId $PrincipalId \
   -NewEnvironmentPackageFileUri $NewEnvironmentPackageFileUri \
   -ExistingEnvironmentPackageFileUri $ExistingEnvironmentPackageFileUri \
-  -Day2PackageFileUri $Day2PackageFileUri
+  -Day2PackageFileUri $Day2PackageFileUri \
+  -AddSessionHostsPackageFileUri $AddSessionHostsPackageFileUri \
+  -ScalingPackageFileUri $ScalingPackageFileUri \
+  -MonitoringPackageFileUri $MonitoringPackageFileUri \
+  -SummaryPackageFileUri $SummaryPackageFileUri
 ```
 
-This publishes three managed application definitions through [infra/managedapp/deployDefinitions.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/managedapp/deployDefinitions.bicep).
+This publishes seven managed application definitions through [infra/managedapp/deployDefinitions.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/managedapp/deployDefinitions.bicep).
 
 ## Step 5: Verify The Published Definitions
 
@@ -244,10 +360,18 @@ This publishes three managed application definitions through [infra/managedapp/d
 $NewEnvironmentDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm"
 $ExistingEnvironmentDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm"
 $Day2DefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm"
+$AddSessionHostsDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm"
+$ScalingDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm"
+$MonitoringDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm"
+$SummaryDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm"
 
 az resource show --ids $NewEnvironmentDefinitionId
 az resource show --ids $ExistingEnvironmentDefinitionId
 az resource show --ids $Day2DefinitionId
+az resource show --ids $AddSessionHostsDefinitionId
+az resource show --ids $ScalingDefinitionId
+az resource show --ids $MonitoringDefinitionId
+az resource show --ids $SummaryDefinitionId
 ```
 
 ## Step 6: Publish Repo-Facing Portal Links
@@ -257,29 +381,58 @@ After the definitions exist, update the repo docs with the real operator-facing 
 1. `Deploy New Environment`
 2. `Manage Existing AVD Deployment`
 3. `Launch Day-2 Operations`
+4. `Configure Scaling Plan`
+5. `Add Session Hosts`
+6. `Align Monitoring Posture`
+7. `Generate Operational Summary`
 
 Do not publish placeholder URLs in the repo before the definitions are live.
 
 ## Current Published State
 
-Package release:
+Active package hosting:
 
-- `https://github.com/sandy12341/End-to-End-AVDDeployment-AVM/releases/tag/managedapp-packages-20260425`
+- Azure Blob Storage account `stavdmapkg830ef64901`, container `managedapp-packages`
 
-Release assets in active use:
+Package artifacts in active use:
 
 - `app-new.zip`
 - `app-existing.zip`
 - `app-day2.zip`
+- `app-addhosts.zip`
+- `app-scaling.zip`
+- `app-monitoring.zip`
+- `app-summary.zip`
 
 Published definition IDs:
 
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm`
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm`
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm`
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm`
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm`
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm`
+- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm`
+
+Operator-facing portal links:
+
+- Deploy New Environment: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm/overview`
+- Manage Existing AVD Deployment: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview`
+- Launch Day-2 Operations: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview`
+- Add Session Hosts: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm/overview`
+- Configure Scaling Plan: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm/overview`
+- Align Monitoring Posture: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm/overview`
+- Generate Operational Summary: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview`
+
+Focused wizard runtime checklist:
+
+- `Add Session Hosts`: expected stepper is `Basics`, `Existing AVD target`, `Instance details`, `Networking`, `Local admin`, `Authentication`, `Review`.
+- `Configure Scaling Plan`: expected stepper is `Basics`, `Existing AVD target`, `Eligibility check`, `Scaling plan`, `Review`.
+- `Align Monitoring Posture`: expected stepper is `Basics`, `Existing AVD target`, `Monitoring posture`, `Review`.
+- `Generate Operational Summary`: expected stepper is `Basics`, `Existing AVD target`, `Optional FSLogix enrichment`, `Review`.
 
 Operational notes:
 
-- package hosting currently uses GitHub release assets rather than Azure Blob Storage because the dedicated storage account path was blocked by data-plane RBAC propagation during publication
+- package hosting now uses Azure Blob Storage with user-delegation SAS URIs during publication
 - package ingestion succeeded through the managed application definition deployment even though `az resource show` does not surface `properties.packageFileUri` after publication
-- the greenfield managed-app definition was republished to use `app-new.zip` so it no longer relies on the generic `app.zip` package
+- the add-session-hosts definition was published successfully at `2026-04-27T22:25:21.830974+00:00`
