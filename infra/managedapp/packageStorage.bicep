@@ -8,7 +8,7 @@ param location string = resourceGroup().location
 @maxLength(24)
 param storageAccountName string
 
-@description('Blob container name used to hold the managed application package zip files.')
+@description('Virtual path prefix under the static website endpoint used to hold the managed application package zip files.')
 @minLength(3)
 @maxLength(63)
 param containerName string = 'managedapp-packages'
@@ -22,7 +22,7 @@ param containerName string = 'managedapp-packages'
 ])
 param storageSku string = 'Standard_LRS'
 
-@description('Allow package retrieval over the public network. Keep enabled so Azure can fetch package URIs, while container access remains private and SAS-based.')
+@description('Allow package retrieval over the public network. Keep enabled so Azure can fetch stable package URIs from the storage static website endpoint.')
 param publicNetworkAccess string = 'Enabled'
 
 resource packageStorage 'Microsoft.Storage/storageAccounts@2025-08-01' = {
@@ -55,19 +55,16 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-08-01'
       days: 7
     }
     isVersioningEnabled: true
-  }
-}
-
-resource packageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-08-01' = {
-  parent: blobService
-  name: containerName
-  properties: {
-    publicAccess: 'None'
+    staticWebsite: {
+      enabled: true
+      indexDocument: 'index.html'
+      errorDocument404Path: '404.html'
+    }
   }
 }
 
 output storageAccountId string = packageStorage.id
 output storageAccountName string = packageStorage.name
 output blobEndpoint string = packageStorage.properties.primaryEndpoints.blob
-output containerName string = packageContainer.name
-output containerUri string = '${packageStorage.properties.primaryEndpoints.blob}${packageContainer.name}'
+output containerName string = '$web'
+output containerUri string = '${packageStorage.properties.primaryEndpoints.web}${containerName}'

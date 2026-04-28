@@ -31,39 +31,34 @@ The live launch inventory in [README.md](c:/Users/raavisandeep/OneDrive%20-%20Mi
 
 ## Package URI Map
 
-Use one stable HTTPS URI per package artifact.
+Use one stable HTTPS URI per package artifact. The recommended path is the storage account static website endpoint, backed by a dedicated package storage account managed through Bicep.
 
 | Entry point | Definition name | Local artifact | Placeholder URI |
 |---|---|---|---|
-| Deploy New Environment | `avd-new-environment-avm` | `infra/managedapp/dist/app-new.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-new.zip?<sas>` |
-| Manage Existing AVD Deployment | `avd-manage-existing-avm` | `infra/managedapp/dist/app-existing.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-existing.zip?<sas>` |
-| Launch Day-2 Operations | `avd-day2-operations-avm` | `infra/managedapp/dist/app-day2.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-day2.zip?<sas>` |
-| Add Session Hosts | `avd-add-session-hosts-avm` | `infra/managedapp/dist/app-addhosts.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-addhosts.zip?<sas>` |
-| Configure Scaling Plan | `avd-configure-scaling-avm` | `infra/managedapp/dist/app-scaling.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-scaling.zip?<sas>` |
-| Align Monitoring Posture | `avd-align-monitoring-avm` | `infra/managedapp/dist/app-monitoring.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-monitoring.zip?<sas>` |
-| Generate Operational Summary | `avd-operational-summary-avm` | `infra/managedapp/dist/app-summary.zip` | `https://<storage-account>.blob.core.windows.net/<container>/app-summary.zip?<sas>` |
+| Deploy New Environment | `avd-new-environment-avm` | `infra/managedapp/dist/app-new.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-new.zip` |
+| Manage Existing AVD Deployment | `avd-manage-existing-avm` | `infra/managedapp/dist/app-existing.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-existing.zip` |
+| Launch Day-2 Operations | `avd-day2-operations-avm` | `infra/managedapp/dist/app-day2.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-day2.zip` |
+| Add Session Hosts | `avd-add-session-hosts-avm` | `infra/managedapp/dist/app-addhosts.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-addhosts.zip` |
+| Configure Scaling Plan | `avd-configure-scaling-avm` | `infra/managedapp/dist/app-scaling.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-scaling.zip` |
+| Align Monitoring Posture | `avd-align-monitoring-avm` | `infra/managedapp/dist/app-monitoring.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-monitoring.zip` |
+| Generate Operational Summary | `avd-operational-summary-avm` | `infra/managedapp/dist/app-summary.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-summary.zip` |
 
-If you prefer GitHub Releases instead of Blob Storage, map the same seven files to seven immutable release asset URLs.
+The storage account keeps `allowBlobPublicAccess = false`. Public package retrieval comes from the static website endpoint instead, while uploads continue to use Microsoft Entra authentication.
 
 ## Recommended Publish Inputs
 
-Use these placeholders consistently:
+The default publish flow now derives package URLs from a storage account and container instead of requiring seven caller-supplied URIs.
 
 ```powershell
 $DefinitionResourceGroup = 'rg-avd-managedapp-def-avm'
 $Location = 'westus3'
 $StorageAccountName = '<storage-account-name>'
+$PackageStorageResourceGroup = '<package-storage-resource-group>'
 $ContainerName = 'managedapp-packages'
 $PrincipalId = '<entra-object-id>'
-
-$NewEnvironmentPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-new.zip?<sas>'
-$ExistingEnvironmentPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-existing.zip?<sas>'
-$Day2PackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-day2.zip?<sas>'
-$AddSessionHostsPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-addhosts.zip?<sas>'
-$ScalingPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-scaling.zip?<sas>'
-$MonitoringPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-monitoring.zip?<sas>'
-$SummaryPackageFileUri = 'https://<storage-account>.blob.core.windows.net/<container>/app-summary.zip?<sas>'
 ```
+
+If needed, [infra/scripts/Publish-ManagedAppDefinitions.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Publish-ManagedAppDefinitions.ps1) still supports the legacy explicit-URI path, but that is now the escape hatch rather than the primary workflow.
 
 ## Current Environment Starter Block
 
@@ -145,176 +140,29 @@ az deployment group create \
 
 This storage account is configured to:
 
-- keep blob containers private
-- disable anonymous blob access
+- keep blob public access disabled at the account level
+- enable the static website endpoint for durable package fetches
+- publish package blobs under the `$web` container with the configured path prefix
 - disable shared key access
 - allow HTTPS-only access
-- keep public network access enabled so Azure can fetch package URIs via SAS
+- keep public network access enabled so Azure can fetch package URIs directly
 
-Because shared key access is disabled, uploads and SAS generation should use Microsoft Entra authentication plus data-plane RBAC on the storage account. At minimum, the publishing identity needs `Storage Blob Data Owner` or `Storage Blob Data Contributor` scoped to the package storage account.
+Because shared key access is disabled, uploads should use Microsoft Entra authentication plus data-plane RBAC on the storage account. At minimum, the publishing identity needs `Storage Blob Data Owner` or `Storage Blob Data Contributor` scoped to the package storage account.
 
-## Step 2: Upload The Packages
+## Step 2: Upload The Packages And Resolve Durable URIs
 
-The simplest repeatable option is Azure Blob Storage with Entra-authenticated upload.
+The default path is to let the publish script provision or reconcile the package storage account through Bicep, upload the seven zip files with Entra-authenticated data-plane access, and then publish the managed application definitions using stable blob URLs.
 
-Create the container if needed:
-
-```powershell
-az storage container create \
-  --name $ContainerName \
-  --account-name $StorageAccountName \
-  --auth-mode login
-```
-
-Upload each package:
+The stable package URL pattern is:
 
 ```powershell
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-new.zip \
-  --file infra/managedapp/dist/app-new.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-existing.zip \
-  --file infra/managedapp/dist/app-existing.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-day2.zip \
-  --file infra/managedapp/dist/app-day2.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-addhosts.zip \
-  --file infra/managedapp/dist/app-addhosts.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-scaling.zip \
-  --file infra/managedapp/dist/app-scaling.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-monitoring.zip \
-  --file infra/managedapp/dist/app-monitoring.zip \
-  --overwrite true \
-  --auth-mode login
-
-az storage blob upload \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-summary.zip \
-  --file infra/managedapp/dist/app-summary.zip \
-  --overwrite true \
-  --auth-mode login
-```
-
-Generate read-only user-delegation SAS tokens if the package URIs should not rely on public blob access:
-
-```powershell
-$Expiry = (Get-Date).ToUniversalTime().AddDays(7).ToString('yyyy-MM-ddTHH:mmZ')
-
-$NewEnvironmentSas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-new.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
+$WebEndpoint = az storage account show \
+  --name $StorageAccountName \
+  --resource-group $PackageStorageResourceGroup \
+  --query primaryEndpoints.web \
   -o tsv
 
-$ExistingEnvironmentSas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-existing.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
-  -o tsv
-
-$Day2Sas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-day2.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
-  -o tsv
-
-$AddSessionHostsSas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-addhosts.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
-  -o tsv
-
-$ScalingSas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-scaling.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
-  -o tsv
-
-$MonitoringSas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-monitoring.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
-  -o tsv
-
-$SummarySas = az storage blob generate-sas \
-  --as-user \
-  --account-name $StorageAccountName \
-  --container-name $ContainerName \
-  --name app-summary.zip \
-  --permissions r \
-  --expiry $Expiry \
-  --https-only \
-  --auth-mode login \
-  -o tsv
-
-$NewEnvironmentPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-new.zip?$NewEnvironmentSas"
-$ExistingEnvironmentPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-existing.zip?$ExistingEnvironmentSas"
-$Day2PackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-day2.zip?$Day2Sas"
-$AddSessionHostsPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-addhosts.zip?$AddSessionHostsSas"
-$ScalingPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-scaling.zip?$ScalingSas"
-$MonitoringPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-monitoring.zip?$MonitoringSas"
-$SummaryPackageFileUri = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/app-summary.zip?$SummarySas"
+"$WebEndpoint$ContainerName/<package-name>.zip"
 ```
 
 ## Step 3: Preview The Definition Deployment
@@ -326,13 +174,9 @@ pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
   -ResourceGroupName $DefinitionResourceGroup \
   -Location $Location \
   -PrincipalId $PrincipalId \
-  -NewEnvironmentPackageFileUri $NewEnvironmentPackageFileUri \
-  -ExistingEnvironmentPackageFileUri $ExistingEnvironmentPackageFileUri \
-  -Day2PackageFileUri $Day2PackageFileUri \
-  -AddSessionHostsPackageFileUri $AddSessionHostsPackageFileUri \
-  -ScalingPackageFileUri $ScalingPackageFileUri \
-  -MonitoringPackageFileUri $MonitoringPackageFileUri \
-  -SummaryPackageFileUri $SummaryPackageFileUri \
+  -PackageStorageAccountName $StorageAccountName \
+  -PackageStorageResourceGroup $PackageStorageResourceGroup \
+  -PackageContainerName $ContainerName \
   -WhatIf
 ```
 
@@ -343,16 +187,14 @@ pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
   -ResourceGroupName $DefinitionResourceGroup \
   -Location $Location \
   -PrincipalId $PrincipalId \
-  -NewEnvironmentPackageFileUri $NewEnvironmentPackageFileUri \
-  -ExistingEnvironmentPackageFileUri $ExistingEnvironmentPackageFileUri \
-  -Day2PackageFileUri $Day2PackageFileUri \
-  -AddSessionHostsPackageFileUri $AddSessionHostsPackageFileUri \
-  -ScalingPackageFileUri $ScalingPackageFileUri \
-  -MonitoringPackageFileUri $MonitoringPackageFileUri \
-  -SummaryPackageFileUri $SummaryPackageFileUri
+  -PackageStorageAccountName $StorageAccountName \
+  -PackageStorageResourceGroup $PackageStorageResourceGroup \
+  -PackageContainerName $ContainerName
 ```
 
 This publishes seven managed application definitions through [infra/managedapp/deployDefinitions.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/managedapp/deployDefinitions.bicep).
+
+If you need to publish from pre-existing immutable URLs outside Azure Blob Storage, pass the seven explicit `*PackageFileUri` parameters instead.
 
 ## Step 5: Verify The Published Definitions
 
@@ -411,7 +253,8 @@ If the outer deployment under `rg-avd-managedapp-def-avm` shows empty outputs, t
 
 Active package hosting:
 
-- Azure Blob Storage account `stavdmapkg830ef64901`, container `managedapp-packages`
+- Azure Storage static website endpoint `https://stavdmapkg830ef64901.z1.web.core.windows.net/`
+- Path prefix `managedapp-packages`
 
 Package artifacts in active use:
 
@@ -452,6 +295,7 @@ Focused wizard runtime checklist:
 
 Operational notes:
 
-- package hosting now uses Azure Blob Storage with user-delegation SAS URIs during publication
+- package hosting now uses Azure Storage static website URLs rooted at `https://stavdmapkg830ef64901.z1.web.core.windows.net/managedapp-packages/`
+- uploads still use Microsoft Entra authentication; shared key access remains disabled
 - package ingestion succeeded through the managed application definition deployment even though `az resource show` does not surface `properties.packageFileUri` after publication
 - the add-session-hosts definition was published successfully at `2026-04-27T22:25:21.830974+00:00`
