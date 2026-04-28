@@ -30,6 +30,43 @@
         }
       }
     },
+    "basics": [
+      {
+        "name": "deploymentPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Deployment Prefix",
+        "defaultValue": "avd1",
+        "toolTip": "Naming prefix used for resources other than the host pool.",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{1,6}$",
+          "validationMessage": "Use 1-6 lowercase letters or digits."
+        }
+      },
+      {
+        "name": "environment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Environment",
+        "defaultValue": "dev",
+        "constraints": {
+          "required": true,
+          "allowedValues": [
+            {
+              "label": "Development",
+              "value": "dev"
+            },
+            {
+              "label": "Test",
+              "value": "test"
+            },
+            {
+              "label": "Production",
+              "value": "prod"
+            }
+          ]
+        }
+      }
+    ],
     "steps": [
       {
         "name": "instanceDetails",
