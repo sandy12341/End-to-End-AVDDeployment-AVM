@@ -116,9 +116,10 @@
             },
             "osPlatform": "Windows",
             "imageReference": {
-              "publisher": "microsoftwindowsdesktop",
-              "offer": "office-365",
-              "sku": "win11-24h2-avd-m365"
+              "publisher": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).publisher]",
+              "offer": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).offer]",
+              "sku": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).sku]",
+              "version": "[parse(if(empty(steps('instanceDetails').avdCompatibleMarketplaceOs), '{\"publisher\":\"microsoftwindowsdesktop\",\"offer\":\"office-365\",\"sku\":\"win11-24h2-avd-m365\",\"version\":\"latest\"}', steps('instanceDetails').avdCompatibleMarketplaceOs)).version]"
             },
             "count": "[steps('instanceDetails').sessionHostCount]"
           },
