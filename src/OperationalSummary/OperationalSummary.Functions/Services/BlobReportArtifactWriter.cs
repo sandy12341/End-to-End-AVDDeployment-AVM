@@ -57,13 +57,8 @@ public sealed class BlobReportArtifactWriter : IReportArtifactWriter
     {
         var blobClient = containerClient!.GetBlobClient(blobName);
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-        await blobClient.UploadAsync(
-            stream,
-            new BlobUploadOptions
-            {
-                HttpHeaders = new BlobHttpHeaders { ContentType = contentType }
-            },
-            cancellationToken);
+        await blobClient.UploadAsync(stream, overwrite: true, cancellationToken);
+        await blobClient.SetHttpHeadersAsync(new BlobHttpHeaders { ContentType = contentType }, cancellationToken: cancellationToken);
     }
 
     private ReportArtifact CreateArtifact(string kind, string contentType, string blobName)

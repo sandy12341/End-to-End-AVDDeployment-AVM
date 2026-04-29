@@ -283,12 +283,12 @@ $FunctionKey = az functionapp function keys list `
   -o tsv
 
 $RequestBody = @{
-  hostPoolResourceId = '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/hostPools/hp-avd-avd1-dev'
+  hostPoolResourceId = '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/hostPools/hp-avd-avd1-dev33'
   applicationGroupResourceIds = @(
     '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/applicationGroups/dag-avd-avd1-dev'
   )
   workspaceResourceId = '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/workspaces/ws-avd-avd1-dev'
-  reportName = 'manual-validation-hp-avd-avd1-dev'
+  reportName = 'manual-validation-hp-avd-avd1-dev33'
 } | ConvertTo-Json -Depth 10
 
 Invoke-RestMethod `

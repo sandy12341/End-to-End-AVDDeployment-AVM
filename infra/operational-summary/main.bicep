@@ -10,6 +10,9 @@ param workloadName string = 'avd-ops-summary'
 @description('Report container name in the private report storage account.')
 param reportContainerName string = 'operational-summaries'
 
+@description('Blob container used by Flex Consumption for Function deployment packages.')
+param deploymentPackageContainerName string = 'function-packages'
+
 @description('Virtual folder prefix for generated report artifacts.')
 param reportPathPrefix string = 'operational-summary'
 
@@ -42,8 +45,8 @@ var identityName = 'id-${workloadName}-${suffix}'
 var storageName = 'stops${suffix}'
 var workspaceName = 'law-${workloadName}-${suffix}'
 var appInsightsName = 'appi-${workloadName}-${suffix}'
-var planName = 'asp-${workloadName}-${suffix}'
-var functionAppName = 'func-${workloadName}-${suffix}'
+var planName = 'aspfc-${workloadName}-${suffix}'
+var functionAppName = 'funcfc-${workloadName}-${suffix}'
 var managedAppEventWebhookFunctionResourceId = resourceId('Microsoft.Web/sites/functions', functionAppName, 'GenerateOperationalSummaryFromManagedAppEvent')
 var managedAppEventWebhookFunctionApiVersion = '2024-04-01'
 var resolvedManagedAppEventGridSystemTopicName = empty(managedAppEventGridSystemTopicName) ? 'egst-${workloadName}-${suffix}' : managedAppEventGridSystemTopicName
@@ -57,6 +60,7 @@ var collectorIdentityDisplayName = useExistingCollectorIdentity ? last(split(exi
 var storageBlobDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var storageQueueDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
 var storageTableDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+var monitoringMetricsPublisherRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '3913510d-42f4-4e42-8a64-420c390055eb')
 
 resource collectorIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = if (!useExistingCollectorIdentity) {
   name: identityName
@@ -109,6 +113,14 @@ resource reportContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   }
 }
 
+resource deploymentPackageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-01-01' = {
+  parent: blobService
+  name: deploymentPackageContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02-01' = {
   name: workspaceName
   location: location
@@ -141,8 +153,8 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2024-11-01' = {
   tags: tags
   kind: 'functionapp'
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    name: 'FC1'
+    tier: 'FlexConsumption'
   }
   properties: {
     reserved: true
@@ -163,8 +175,27 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
   properties: {
     serverFarmId: hostingPlan.id
     httpsOnly: true
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${reportStorage.properties.primaryEndpoints.blob}${deploymentPackageContainer.name}'
+          authentication: {
+            type: 'UserAssignedIdentity'
+            userAssignedIdentityResourceId: collectorIdentityResourceId
+          }
+        }
+      }
+      runtime: {
+        name: 'dotnet-isolated'
+        version: '8.0'
+      }
+      scaleAndConcurrency: {
+        instanceMemoryMB: 2048
+        maximumInstanceCount: 40
+      }
+    }
     siteConfig: {
-      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       http20Enabled: true
@@ -174,8 +205,28 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
           value: applicationInsights.properties.ConnectionString
         }
         {
+          name: 'APPLICATIONINSIGHTS_AUTHENTICATION_STRING'
+          value: 'ClientId=${collectorIdentityClientId};Authorization=AAD'
+        }
+        {
+          name: 'AZURE_CLIENT_ID'
+          value: collectorIdentityClientId
+        }
+        {
           name: 'AzureWebJobsStorage__accountName'
           value: reportStorage.name
+        }
+        {
+          name: 'AzureWebJobsStorage__blobServiceUri'
+          value: reportStorage.properties.primaryEndpoints.blob
+        }
+        {
+          name: 'AzureWebJobsStorage__queueServiceUri'
+          value: reportStorage.properties.primaryEndpoints.queue
+        }
+        {
+          name: 'AzureWebJobsStorage__tableServiceUri'
+          value: reportStorage.properties.primaryEndpoints.table
         }
         {
           name: 'AzureWebJobsStorage__credential'
@@ -184,14 +235,6 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
         {
           name: 'AzureWebJobsStorage__clientId'
           value: collectorIdentityClientId
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet-isolated'
         }
         {
           name: 'ReportStorageAccountName'
@@ -239,6 +282,16 @@ resource storageTableDataContributorAssignment 'Microsoft.Authorization/roleAssi
   scope: reportStorage
   properties: {
     roleDefinitionId: storageTableDataContributorRoleId
+    principalId: collectorIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource monitoringMetricsPublisherAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(applicationInsights.id, collectorIdentityResourceId, 'Monitoring Metrics Publisher')
+  scope: applicationInsights
+  properties: {
+    roleDefinitionId: monitoringMetricsPublisherRoleId
     principalId: collectorIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
