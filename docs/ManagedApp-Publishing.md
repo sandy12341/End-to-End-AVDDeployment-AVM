@@ -242,7 +242,7 @@ When `enableManagedAppEventGridTrigger` is `true`, the collector deployment crea
 | AVD / SysAdmin | Combined JSON/HTML report artifacts; host pool context; related application group discovery; discovery confidence; finding counts; initial operational follow-up actions; opt-in managed app Event Grid webhook invocation. | Broader VDI posture analyzers for session host health, scaling configuration, image/version drift, FSLogix storage posture, monitoring coverage, capacity signals, and report index/latest-link handoff from the managed app launch. | In progress |
 | Security Admin | ARM role assignment discovery at subscription, resource group, and application group scopes; direct and inherited `Desktop Virtualization User` assignment evidence; Microsoft Graph validation states for `Exists`, `NotFound`, `NotReadable`, and incomplete validation. | Tenant admin consent for Graph `Group.Read.All` where required; security baseline checks for privileged role exposure, stale assignments, private endpoint/storage posture, diagnostic coverage, alert posture, and drift. | In progress |
 | Helpdesk Admin | Initial support-oriented report view with application groups available for access review, collected access evidence counts, validated assigned group counts, and escalation guidance for launch/access issues. | User/session lookup, connection failure triage, profile/FSLogix symptom signals, separate helpdesk-friendly HTML output, and sanitized escalation evidence bundles. | Initial view implemented |
-| Platform / Managed App Operator | Seven managed app definitions packaged/published; operational summary package supports fresh ingestion with `-RecreateSummaryDefinition`; collector identity reuse documented; private blob report writing implemented; Event Grid webhook path available but opt-in. | Deploy and validate the collector Function/report storage in the customer subscription; verify manual report generation first; enable Event Grid after validation; document the exact customer-facing report retrieval flow. | Ready for manual validation |
+| Platform / Managed App Operator | Seven managed app definitions packaged/published; operational summary package supports fresh ingestion with `-RecreateSummaryDefinition`; collector identity reuse documented; private blob report writing implemented; manual collector validation succeeded; failed Y1 validation resources cleaned up; Event Grid system topic and managed app write subscription enabled in the validation subscription. | Validate a real `Microsoft.Solutions/applications/write` event after an installed managed application instance exists; document the exact customer-facing report retrieval flow; add report index/latest-link handoff. | Event Grid enabled; awaiting managed app instance event |
 
 Keep the status labels conservative: the current collector is authoritative for AVD application group assignment evidence once ARM/RBAC permissions are in place, but the holistic VDI posture summary and customer-facing report retrieval flow still need validation before the persona experience should be described as complete.
 
@@ -299,6 +299,38 @@ Invoke-RestMethod `
 ```
 
 Validation is successful only after the report storage container contains both `summary.json` and `summary.html` for the run, and the HTML report shows persona views plus evidence-backed findings. Enable `enableManagedAppEventGridTrigger` only after this manual path succeeds.
+
+### Collector Event Grid Validation Path
+
+Use [infra/operational-summary/main.eventgrid.validation.bicepparam](../infra/operational-summary/main.eventgrid.validation.bicepparam) after manual validation succeeds. This keeps the default/manual parameter file safe while making the managed application write-event path repeatable.
+
+```powershell
+$SubscriptionId = '830ef649-535d-4642-9436-356f9619c2e4'
+$CollectorResourceGroup = 'rg-avd-ops-summary-validation'
+
+az account set --subscription $SubscriptionId
+
+az deployment group what-if `
+  --resource-group $CollectorResourceGroup `
+  --template-file infra/operational-summary/main.bicep `
+  --parameters infra/operational-summary/main.eventgrid.validation.bicepparam
+
+az deployment group create `
+  --resource-group $CollectorResourceGroup `
+  --template-file infra/operational-summary/main.bicep `
+  --parameters infra/operational-summary/main.eventgrid.validation.bicepparam
+```
+
+Expected Event Grid resources:
+
+- System topic: `egst-avd-ops-summary-hvq4vogx`
+- Event subscription: `evs-avd-ops-summary-hvq4vogx`
+- Source: subscription `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4`
+- Included event type: `Microsoft.Resources.ResourceWriteSuccess`
+- Advanced filter: `data.operationName` equals `Microsoft.Solutions/applications/write`
+- Destination: `GenerateOperationalSummaryFromManagedAppEvent` on `funcfc-avd-ops-summary-hvq4vogx`
+
+The validation subscription currently has managed application definitions but no installed `Microsoft.Solutions/applications` instance. Event Grid resource provisioning can be validated immediately, but an end-to-end write-event report requires launching or updating an installed managed application instance so Azure emits a matching `Microsoft.Solutions/applications/write` event.
 
 After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
 
