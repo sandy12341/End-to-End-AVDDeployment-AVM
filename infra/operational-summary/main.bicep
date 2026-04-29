@@ -13,6 +13,15 @@ param reportContainerName string = 'operational-summaries'
 @description('Virtual folder prefix for generated report artifacts.')
 param reportPathPrefix string = 'operational-summary'
 
+@description('Existing user-assigned managed identity resource ID for the collector. Leave empty to create a dedicated collector identity.')
+param existingCollectorIdentityResourceId string = ''
+
+@description('Client ID of the existing collector managed identity. Required when existingCollectorIdentityResourceId is provided.')
+param existingCollectorIdentityClientId string = ''
+
+@description('Principal ID of the existing collector managed identity. Required when existingCollectorIdentityResourceId is provided so storage role assignments can be created.')
+param existingCollectorIdentityPrincipalId string = ''
+
 @description('Tags applied to collector resources.')
 param tags object = {
   Project: 'AVD-Landing-Zone'
@@ -26,12 +35,17 @@ var workspaceName = 'law-${workloadName}-${suffix}'
 var appInsightsName = 'appi-${workloadName}-${suffix}'
 var planName = 'asp-${workloadName}-${suffix}'
 var functionAppName = 'func-${workloadName}-${suffix}'
+var useExistingCollectorIdentity = !empty(existingCollectorIdentityResourceId)
+var collectorIdentityResourceId = useExistingCollectorIdentity ? existingCollectorIdentityResourceId : collectorIdentity.id
+var collectorIdentityClientId = useExistingCollectorIdentity ? existingCollectorIdentityClientId : collectorIdentity!.properties.clientId
+var collectorIdentityPrincipalId = useExistingCollectorIdentity ? existingCollectorIdentityPrincipalId : collectorIdentity!.properties.principalId
+var collectorIdentityDisplayName = useExistingCollectorIdentity ? last(split(existingCollectorIdentityResourceId, '/')) : collectorIdentity.name
 
 var storageBlobDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var storageQueueDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
 var storageTableDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
 
-resource collectorIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
+resource collectorIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = if (!useExistingCollectorIdentity) {
   name: identityName
   location: location
   tags: tags
@@ -130,7 +144,7 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${collectorIdentity.id}': {}
+      '${collectorIdentityResourceId}': {}
     }
   }
   properties: {
@@ -156,7 +170,7 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'AzureWebJobsStorage__clientId'
-          value: collectorIdentity.properties.clientId
+          value: collectorIdentityClientId
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -188,39 +202,41 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
 }
 
 resource storageBlobDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(reportStorage.id, collectorIdentity.name, 'Storage Blob Data Contributor')
+  name: guid(reportStorage.id, collectorIdentityResourceId, 'Storage Blob Data Contributor')
   scope: reportStorage
   properties: {
     roleDefinitionId: storageBlobDataContributorRoleId
-    principalId: collectorIdentity.properties.principalId
+    principalId: collectorIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
 }
 
 resource storageQueueDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(reportStorage.id, collectorIdentity.name, 'Storage Queue Data Contributor')
+  name: guid(reportStorage.id, collectorIdentityResourceId, 'Storage Queue Data Contributor')
   scope: reportStorage
   properties: {
     roleDefinitionId: storageQueueDataContributorRoleId
-    principalId: collectorIdentity.properties.principalId
+    principalId: collectorIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
 }
 
 resource storageTableDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(reportStorage.id, collectorIdentity.name, 'Storage Table Data Contributor')
+  name: guid(reportStorage.id, collectorIdentityResourceId, 'Storage Table Data Contributor')
   scope: reportStorage
   properties: {
     roleDefinitionId: storageTableDataContributorRoleId
-    principalId: collectorIdentity.properties.principalId
+    principalId: collectorIdentityPrincipalId
     principalType: 'ServicePrincipal'
   }
 }
 
 output functionAppName string = functionApp.name
 output functionAppResourceId string = functionApp.id
-output collectorIdentityPrincipalId string = collectorIdentity.properties.principalId
-output collectorIdentityResourceId string = collectorIdentity.id
+output collectorIdentityName string = collectorIdentityDisplayName
+output collectorIdentityClientId string = collectorIdentityClientId
+output collectorIdentityPrincipalId string = collectorIdentityPrincipalId
+output collectorIdentityResourceId string = collectorIdentityResourceId
 output reportStorageAccountName string = reportStorage.name
 output reportContainerName string = reportContainer.name
 output targetDiscoveryRoleGuidance string = 'Assign Reader plus roleAssignments/read-capable access, such as Reader with Microsoft.Authorization/roleAssignments/read or an approved custom role, at the target AVD resource group or subscription scope.'

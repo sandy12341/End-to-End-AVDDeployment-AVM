@@ -206,6 +206,33 @@ The `Generate Operational Summary` managed app uses `CreateUiDefinition` ARM API
 
 The collector validates assigned AVD group principals through Microsoft Graph. Grant the collector managed identity approved Graph application permission `Group.Read.All` before treating group validation as complete. If Graph cannot be read, the generated report records `GROUP_PRINCIPAL_NOT_READABLE` and does not claim that the group is missing.
 
+The Operational Summary collector can either create a dedicated user-assigned managed identity or reuse an existing read-only discovery identity such as `avd-rbac-discovery`. Reuse is secure only when the identity is dedicated to discovery/reporting and does not hold write-capable roles on the target AVD environment. To reuse it, resolve the identity values and pass all three existing-identity parameters to [infra/operational-summary/main.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/operational-summary/main.bicep):
+
+```powershell
+$DiscoveryIdentity = az identity list \
+  --query "[?name=='avd-rbac-discovery'] | [0]" \
+  -o json | ConvertFrom-Json
+
+az deployment group create \
+  --resource-group '<collector-resource-group>' \
+  --template-file infra/operational-summary/main.bicep \
+  --parameters \
+    existingCollectorIdentityResourceId=$DiscoveryIdentity.id \
+    existingCollectorIdentityClientId=$DiscoveryIdentity.clientId \
+    existingCollectorIdentityPrincipalId=$DiscoveryIdentity.principalId
+```
+
+Keep the target-scope permissions narrow:
+
+| Permission area | Recommended scope | Purpose |
+|---|---|---|
+| AVD resource read | Target AVD resource group | Read host pool, workspace, application groups, and related resources. |
+| Role assignment read | Target AVD resource group; subscription only if subscription-inherited assignments must be authoritative | Discover direct and inherited `Desktop Virtualization User` assignments. |
+| Report storage data plane | Collector report storage account only | Write `summary.json` and `summary.html` using managed identity. |
+| Microsoft Graph | Approved application permission `Group.Read.All` | Validate assigned group principals as existing, missing, unreadable, or not evaluated. |
+
+Do not assign `Owner`, `Contributor`, or `User Access Administrator` to the collector identity. If future remediation is added, use a separate remediation identity behind approval rather than expanding `avd-rbac-discovery`.
+
 After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
 
 ```powershell
