@@ -256,12 +256,6 @@ param brownfieldDetectedDirectUserAssignmentCount int = 0
 @description('Detected group-based assignment count across related application groups.')
 param brownfieldDetectedGroupAssignmentCount int = 0
 
-@description('Enables deployment-time application group RBAC discovery for the dedicated operational summary managed app package.')
-param enableOperationalSummaryRbacDiscovery bool = false
-
-@description('Optional user-assigned managed identity resource ID used by the operational summary deployment script to read application group role assignments.')
-param operationalSummaryRbacDiscoveryManagedIdentityResourceId string = ''
-
 @description('Detected FSLogix storage account name provided for operational summary assessment.')
 param brownfieldDetectedFslogixStorageAccountName string = ''
 
@@ -463,10 +457,8 @@ var operationalSummaryPreferredAppGroupType = empty(brownfieldDetectedPreferredA
 var operationalSummaryAuthenticationType = empty(brownfieldDetectedAuthenticationType) ? 'Unknown' : brownfieldDetectedAuthenticationType
 var operationalSummaryFslogixAssessmentProvided = !empty(brownfieldDetectedFslogixStorageAccountResourceId)
 var operationalSummaryRbacDiscoveryDefault = {
-  state: !enableOperationalSummaryRbacDiscovery
-    ? 'Disabled'
-    : 'DisabledByStoragePolicy'
-  identityResourceId: operationalSummaryRbacDiscoveryManagedIdentityResourceId
+  state: 'AuthoritativeCollectorRequired'
+  identityResourceId: ''
   desktopAssignmentCount: 0
   remoteAppAssignmentCount: 0
   directUserAssignmentCount: 0
@@ -497,10 +489,9 @@ var effectiveBrownfieldDetectedRemoteAppAssignmentCount = portalEffectiveBrownfi
 var effectiveBrownfieldDetectedDirectUserAssignmentCount = portalEffectiveBrownfieldDetectedDirectUserAssignmentCount
 var effectiveBrownfieldDetectedGroupAssignmentCount = portalEffectiveBrownfieldDetectedGroupAssignmentCount
 var effectiveApplicationGroupAssignmentCoverageEvaluated = brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
-var effectiveApplicationGroupAssignmentsMissing = brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0
 var effectiveApplicationGroupAssignmentsState = !brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
   ? 'NotEvaluatedInPortal'
-  : ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal')
+  : ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'NotConfirmedByPortalPreview')
 var operationalSummaryFindings = concat(
   isDay2GenerateOperationalSummary && length(brownfieldDetectedHostPoolDiagnosticSettingNames) == 0 ? [
     {
@@ -671,17 +662,17 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && effectiveApplicationGroupAssignmentsMissing && length(relatedApplicationGroupNames) > 0 ? [
+  isDay2GenerateOperationalSummary && effectiveApplicationGroupAssignmentCoverageEvaluated && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
     {
-      code: 'APPLICATION_GROUP_ASSIGNMENTS_MISSING'
-      severity: 'High'
+      code: 'APPLICATION_GROUP_ASSIGNMENTS_NOT_CONFIRMED'
+      severity: 'Informational'
       category: 'Access'
-      bestPractice: 'Grant access through explicit application group assignments so published resources are reachable through governed identities.'
-      observedState: 'No role assignments were detected across the related application groups in the selected host pool resource group.'
-      impact: 'Users may be unable to launch published resources, or access may be managed outside the intended scope.'
-      recommendedAction: 'Review access assignments and run UpdateAccessAssignments if the application groups should be managed by this solution.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'UpdateAccessAssignments'
+      bestPractice: 'Validate application group access with an authoritative collector before declaring missing access assignments.'
+      observedState: 'The managed app portal preview did not confirm role assignments across the related application groups. This preview can miss inherited, paged, or permission-constrained RBAC data.'
+      impact: 'The operational summary cannot prove whether access is missing from portal-preview data alone.'
+      recommendedAction: 'Run the Operational Summary collector or review application group assignments directly before remediation.'
+      canBeMitigatedBySolutionAction: false
+      recommendedActionName: 'RunOperationalSummaryCollector'
     }
   ] : [],
   isDay2GenerateOperationalSummary && effectiveApplicationGroupAssignmentCoverageEvaluated && effectiveBrownfieldDetectedDirectUserAssignmentCount > 0 ? [
@@ -893,7 +884,7 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
         assignmentDiscovery: {
           source: 'CreateUiDefinition'
           state: effectiveApplicationGroupAssignmentsState
-          deploymentScriptState: operationalSummaryRbacDiscoveryState
+          authoritativeDiscoveryState: operationalSummaryRbacDiscoveryState
           identityConfigured: false
           queriedScopeCount: length(brownfieldDetectedRelatedApplicationGroupIds)
           assignmentCandidateCount: length(brownfieldDetectedScopedApplicationGroupAssignments)

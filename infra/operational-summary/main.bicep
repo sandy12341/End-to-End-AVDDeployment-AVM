@@ -1,0 +1,215 @@
+targetScope = 'resourceGroup'
+
+@description('Azure region for the Operational Summary collector resources.')
+param location string = resourceGroup().location
+
+@description('Short workload name used as a prefix for collector resources.')
+@minLength(3)
+param workloadName string = 'avd-ops-summary'
+
+@description('Report container name in the private report storage account.')
+param reportContainerName string = 'operational-summaries'
+
+@description('Tags applied to collector resources.')
+param tags object = {
+  Project: 'AVD-Landing-Zone'
+  Workload: 'OperationalSummaryCollector'
+}
+
+var suffix = take(uniqueString(resourceGroup().id, workloadName), 8)
+var identityName = 'id-${workloadName}-${suffix}'
+var storageName = 'stops${suffix}'
+var workspaceName = 'law-${workloadName}-${suffix}'
+var appInsightsName = 'appi-${workloadName}-${suffix}'
+var planName = 'asp-${workloadName}-${suffix}'
+var functionAppName = 'func-${workloadName}-${suffix}'
+
+var storageBlobDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+var storageQueueDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+var storageTableDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+
+resource collectorIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
+  name: identityName
+  location: location
+  tags: tags
+}
+
+resource reportStorage 'Microsoft.Storage/storageAccounts@2025-01-01' = {
+  name: storageName
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    defaultToOAuthAuthentication: true
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'
+    }
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-01-01' = {
+  parent: reportStorage
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 30
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: 30
+    }
+  }
+}
+
+resource reportContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-01-01' = {
+  parent: blobService
+  name: reportContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02-01' = {
+  name: workspaceName
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+  }
+}
+
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  tags: tags
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logWorkspace.id
+    DisableLocalAuth: true
+  }
+}
+
+resource hostingPlan 'Microsoft.Web/serverfarms@2024-11-01' = {
+  name: planName
+  location: location
+  tags: tags
+  kind: 'functionapp'
+  sku: {
+    name: 'Y1'
+    tier: 'Dynamic'
+  }
+  properties: {
+    reserved: true
+  }
+}
+
+resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
+  name: functionAppName
+  location: location
+  tags: tags
+  kind: 'functionapp,linux'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${collectorIdentity.id}': {}
+    }
+  }
+  properties: {
+    serverFarmId: hostingPlan.id
+    httpsOnly: true
+    siteConfig: {
+      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
+      minTlsVersion: '1.2'
+      ftpsState: 'Disabled'
+      http20Enabled: true
+      appSettings: [
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsights.properties.ConnectionString
+        }
+        {
+          name: 'AzureWebJobsStorage__accountName'
+          value: reportStorage.name
+        }
+        {
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
+        }
+        {
+          name: 'AzureWebJobsStorage__clientId'
+          value: collectorIdentity.properties.clientId
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'dotnet-isolated'
+        }
+        {
+          name: 'ReportStorageAccountName'
+          value: reportStorage.name
+        }
+        {
+          name: 'ReportContainerName'
+          value: reportContainer.name
+        }
+      ]
+    }
+  }
+}
+
+resource storageBlobDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(reportStorage.id, collectorIdentity.name, 'Storage Blob Data Contributor')
+  scope: reportStorage
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleId
+    principalId: collectorIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource storageQueueDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(reportStorage.id, collectorIdentity.name, 'Storage Queue Data Contributor')
+  scope: reportStorage
+  properties: {
+    roleDefinitionId: storageQueueDataContributorRoleId
+    principalId: collectorIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource storageTableDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(reportStorage.id, collectorIdentity.name, 'Storage Table Data Contributor')
+  scope: reportStorage
+  properties: {
+    roleDefinitionId: storageTableDataContributorRoleId
+    principalId: collectorIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+output functionAppName string = functionApp.name
+output functionAppResourceId string = functionApp.id
+output collectorIdentityPrincipalId string = collectorIdentity.properties.principalId
+output collectorIdentityResourceId string = collectorIdentity.id
+output reportStorageAccountName string = reportStorage.name
+output reportContainerName string = reportContainer.name
+output targetDiscoveryRoleGuidance string = 'Assign Reader plus roleAssignments/read-capable access, such as Reader with Microsoft.Authorization/roleAssignments/read or an approved custom role, at the target AVD resource group or subscription scope.'

@@ -127,12 +127,6 @@ param brownfieldDetectedDirectUserAssignmentCount int = 0
 @description('Detected group-based assignment count across related application groups.')
 param brownfieldDetectedGroupAssignmentCount int = 0
 
-@description('Enables deployment-time application group RBAC discovery for the dedicated operational summary managed app package.')
-param enableOperationalSummaryRbacDiscovery bool = false
-
-@description('Optional user-assigned managed identity resource ID used by the operational summary deployment script to read application group role assignments.')
-param operationalSummaryRbacDiscoveryManagedIdentityResourceId string = ''
-
 @description('Detected FSLogix storage account name provided for operational summary assessment.')
 param brownfieldDetectedFslogixStorageAccountName string = ''
 
@@ -495,8 +489,6 @@ module sharedSolution '../solution/avdDeploymentCore.bicep' = {
     brownfieldDetectedRemoteAppAssignmentCount: brownfieldDetectedRemoteAppAssignmentCount
     brownfieldDetectedDirectUserAssignmentCount: brownfieldDetectedDirectUserAssignmentCount
     brownfieldDetectedGroupAssignmentCount: brownfieldDetectedGroupAssignmentCount
-    enableOperationalSummaryRbacDiscovery: enableOperationalSummaryRbacDiscovery
-    operationalSummaryRbacDiscoveryManagedIdentityResourceId: operationalSummaryRbacDiscoveryManagedIdentityResourceId
     brownfieldDetectedFslogixStorageAccountName: brownfieldDetectedFslogixStorageAccountName
     brownfieldDetectedFslogixStorageAccountResourceId: brownfieldDetectedFslogixStorageAccountResourceId
     brownfieldDetectedFslogixPublicNetworkAccess: brownfieldDetectedFslogixPublicNetworkAccess

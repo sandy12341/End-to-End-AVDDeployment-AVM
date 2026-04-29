@@ -14,12 +14,18 @@ Thumbs.db
 # Secrets
 *.env
 *.local
+local.settings.json
+
+# .NET build outputs
+bin/
+obj/
 
 # Scratch Bicep build outputs
 /infra/main.json
 /infra/solution/avdDeploymentCore.json
 /infra/managedapp/mainTemplate.json
 /infra/managedapp/deployDefinition.json
+/infra/operational-summary/main.json
 
 # Local planning artifacts
 /.azure/

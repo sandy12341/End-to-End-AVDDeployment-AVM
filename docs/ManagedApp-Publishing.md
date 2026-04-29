@@ -202,7 +202,7 @@ If the Generate Operational Summary definition must ingest a new `mainTemplate.j
 
 ## Operational Summary Assignment Discovery
 
-The `Generate Operational Summary` managed app uses `CreateUiDefinition` ARM API calls to detect application-group role assignments. Do not use `Microsoft.Resources/deploymentScripts` for this read-only discovery path in this environment: Azure Deployment Scripts requires backing storage access that uses storage account keys, and this subscription blocks key-based storage authentication by policy.
+The `Generate Operational Summary` managed app uses `CreateUiDefinition` ARM API calls only as portal-preview evidence. It must not declare application-group assignments missing from that preview alone because the portal flow can miss inherited, paged, or permission-constrained RBAC data. Do not use `Microsoft.Resources/deploymentScripts` for this read-only discovery path in this environment: Azure Deployment Scripts requires backing storage access that uses storage account keys, and this subscription blocks key-based storage authentication by policy. Authoritative access discovery belongs in the Operational Summary collector runtime.
 
 After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
 
