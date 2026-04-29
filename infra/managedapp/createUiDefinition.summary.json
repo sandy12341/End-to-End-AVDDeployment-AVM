@@ -16,7 +16,6 @@
             "Microsoft.Compute",
             "Microsoft.DesktopVirtualization",
             "Microsoft.Insights",
-            "Microsoft.ManagedIdentity",
             "Microsoft.Network",
             "Microsoft.OperationalInsights",
             "Microsoft.Storage"
@@ -25,7 +24,6 @@
         "location": {
           "resourceTypes": [
             "Microsoft.DesktopVirtualization/hostPools",
-            "Microsoft.ManagedIdentity/userAssignedIdentities",
             "Microsoft.Network/privateDnsZones",
             "Microsoft.Network/virtualNetworks",
             "Microsoft.Storage/storageAccounts"
@@ -282,33 +280,6 @@
         ]
       },
       {
-        "name": "rbacDiscovery",
-        "label": "RBAC discovery",
-        "elements": [
-          {
-            "name": "rbacDiscoveryNote",
-            "type": "Microsoft.Common.TextBlock",
-            "options": {
-              "text": "Optional but recommended: select a user-assigned managed identity with Reader access to the selected host pool resource group, or equivalent Microsoft.Authorization/roleAssignments/read permission on the related application groups. When omitted or unauthorized, access-assignment findings are reported as not confirmed instead of missing."
-            }
-          },
-          {
-            "name": "rbacDiscoveryIdentity",
-            "type": "Microsoft.Solutions.ResourceSelector",
-            "label": "RBAC discovery managed identity",
-            "resourceType": "Microsoft.ManagedIdentity/userAssignedIdentities",
-            "constraints": {
-              "required": false
-            },
-            "options": {
-              "filter": {
-                "subscription": "onBasics"
-              }
-            }
-          }
-        ]
-      },
-      {
         "name": "review",
         "label": "Review",
         "elements": [
@@ -439,8 +410,8 @@
       "brownfieldDetectedRemoteAppAssignmentCount": "[length(filter(concat(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), if(contains(steps('brownfieldTarget').relatedApplicationGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').relatedApplicationGroupRoleAssignmentsApi.value, parse('[]'))), (assignment) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(and(equals(toLower(replace(string(appGroup.properties.hostPoolArmPath), '\"', '')), toLower(replace(string(steps('brownfieldTarget').selectedHostPool.id), '\"', ''))), equals(toLower(replace(string(assignment.properties.scope), '\"', '')), toLower(concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups/', appGroup.name)))), contains(toLower(replace(string(if(contains(appGroup.properties, 'applicationGroupType'), appGroup.properties.applicationGroupType, if(contains(appGroup, 'kind'), appGroup.kind, if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType')), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, '')))), '\"', '')), 'remoteapp')))), 0)))]",
       "brownfieldDetectedDirectUserAssignmentCount": "[length(filter(concat(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), if(contains(steps('brownfieldTarget').relatedApplicationGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').relatedApplicationGroupRoleAssignmentsApi.value, parse('[]'))), (assignment) => and(contains(toLower(replace(string(assignment.properties.principalType), '\"', '')), 'user'), greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(replace(string(appGroup.properties.hostPoolArmPath), '\"', '')), toLower(replace(string(steps('brownfieldTarget').selectedHostPool.id), '\"', ''))), equals(toLower(replace(string(assignment.properties.scope), '\"', '')), toLower(concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups/', appGroup.name)))))), 0))))]",
       "brownfieldDetectedGroupAssignmentCount": "[length(filter(concat(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')), if(contains(steps('brownfieldTarget').relatedApplicationGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').relatedApplicationGroupRoleAssignmentsApi.value, parse('[]'))), (assignment) => and(contains(toLower(replace(string(assignment.properties.principalType), '\"', '')), 'group'), greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(replace(string(appGroup.properties.hostPoolArmPath), '\"', '')), toLower(replace(string(steps('brownfieldTarget').selectedHostPool.id), '\"', ''))), equals(toLower(replace(string(assignment.properties.scope), '\"', '')), toLower(concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), '/providers/Microsoft.DesktopVirtualization/applicationGroups/', appGroup.name)))))), 0))))]",
-      "enableOperationalSummaryRbacDiscovery": true,
-      "operationalSummaryRbacDiscoveryManagedIdentityResourceId": "[if(contains(steps('rbacDiscovery').rbacDiscoveryIdentity, 'id'), steps('rbacDiscovery').rbacDiscoveryIdentity.id, '')]",
+      "enableOperationalSummaryRbacDiscovery": false,
+      "operationalSummaryRbacDiscoveryManagedIdentityResourceId": "",
       "brownfieldDetectedFslogixStorageAccountName": "[if(contains(steps('fslogixSettings').fslogixStorageAccount, 'name'), steps('fslogixSettings').fslogixStorageAccount.name, '')]",
       "brownfieldDetectedFslogixStorageAccountResourceId": "[if(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), steps('fslogixSettings').fslogixStorageAccount.id, '')]",
       "brownfieldDetectedFslogixPublicNetworkAccess": "[if(contains(steps('fslogixSettings').fslogixStorageApi, 'properties'), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'NotAssessed')]",

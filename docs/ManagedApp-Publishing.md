@@ -200,6 +200,25 @@ If you need to publish from pre-existing immutable URLs outside Azure Blob Stora
 
 If the Generate Operational Summary definition must ingest a new `mainTemplate.json` shape, add `-RecreateSummaryDefinition`. Azure can report a successful update to `packageFileUri` while retaining the previously ingested `ApplicationResourceTemplate`; recreating only `avd-operational-summary-avm` forces a fresh package ingestion without changing the other managed app definitions.
 
+## Operational Summary Assignment Discovery
+
+The `Generate Operational Summary` managed app uses `CreateUiDefinition` ARM API calls to detect application-group role assignments. Do not use `Microsoft.Resources/deploymentScripts` for this read-only discovery path in this environment: Azure Deployment Scripts requires backing storage access that uses storage account keys, and this subscription blocks key-based storage authentication by policy.
+
+After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
+
+```powershell
+pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1 -SkipDirectTemplate
+
+pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
+  -ResourceGroupName $DefinitionResourceGroup \
+  -Location $Location \
+  -PrincipalId $PrincipalId \
+  -PackageStorageAccountName $StorageAccountName \
+  -PackageStorageResourceGroup $PackageStorageResourceGroup \
+  -PackageContainerName $ContainerName \
+  -RecreateSummaryDefinition
+```
+
 ## Step 5: Verify The Published Definitions
 
 ```powershell

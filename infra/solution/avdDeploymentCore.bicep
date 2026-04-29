@@ -462,14 +462,11 @@ var operationalSummaryLoadBalancerType = empty(brownfieldDetectedLoadBalancerTyp
 var operationalSummaryPreferredAppGroupType = empty(brownfieldDetectedPreferredAppGroupType) ? 'Unknown' : brownfieldDetectedPreferredAppGroupType
 var operationalSummaryAuthenticationType = empty(brownfieldDetectedAuthenticationType) ? 'Unknown' : brownfieldDetectedAuthenticationType
 var operationalSummaryFslogixAssessmentProvided = !empty(brownfieldDetectedFslogixStorageAccountResourceId)
-var shouldRunOperationalSummaryRbacDiscovery = isDay2GenerateOperationalSummary && enableOperationalSummaryRbacDiscovery && !empty(operationalSummaryRbacDiscoveryManagedIdentityResourceId) && length(brownfieldDetectedRelatedApplicationGroupIds) > 0
-var operationalSummaryRbacDiscoveryIdentityResourceId = empty(operationalSummaryRbacDiscoveryManagedIdentityResourceId) ? resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'placeholder-operational-summary-rbac') : operationalSummaryRbacDiscoveryManagedIdentityResourceId
 var operationalSummaryRbacDiscoveryDefault = {
   state: !enableOperationalSummaryRbacDiscovery
     ? 'Disabled'
-    : (empty(operationalSummaryRbacDiscoveryManagedIdentityResourceId)
-      ? 'NotConfigured'
-      : (length(brownfieldDetectedRelatedApplicationGroupIds) == 0 ? 'NotEvaluated' : 'NotRun'))
+    : 'DisabledByStoragePolicy'
+  identityResourceId: operationalSummaryRbacDiscoveryManagedIdentityResourceId
   desktopAssignmentCount: 0
   remoteAppAssignmentCount: 0
   directUserAssignmentCount: 0
@@ -479,7 +476,7 @@ var operationalSummaryRbacDiscoveryDefault = {
   errors: []
   assignments: []
 }
-var operationalSummaryRbacDiscoveryState = shouldRunOperationalSummaryRbacDiscovery ? 'DeploymentTimeDiscoveryOutput' : operationalSummaryRbacDiscoveryDefault.state
+var operationalSummaryRbacDiscoveryState = operationalSummaryRbacDiscoveryDefault.state
 var brownfieldDetectedScopedApplicationGroupAssignments = filter(brownfieldDetectedSubscriptionApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedApplicationGroupIds, assignment.scope))
 var shouldClassifyAssignmentsByPreferredDesktop = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0 && length(brownfieldDetectedRelatedDesktopApplicationGroupIds) == 0 && length(brownfieldDetectedRelatedRemoteAppApplicationGroupIds) == 0 && toLower(operationalSummaryPreferredAppGroupType) == 'desktop'
 var shouldClassifyAssignmentsByPreferredRemoteApp = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0 && length(brownfieldDetectedRelatedDesktopApplicationGroupIds) == 0 && length(brownfieldDetectedRelatedRemoteAppApplicationGroupIds) == 0 && toLower(operationalSummaryPreferredAppGroupType) == 'remoteapp'
@@ -499,17 +496,11 @@ var effectiveBrownfieldDetectedDesktopAssignmentCount = portalEffectiveBrownfiel
 var effectiveBrownfieldDetectedRemoteAppAssignmentCount = portalEffectiveBrownfieldDetectedRemoteAppAssignmentCount
 var effectiveBrownfieldDetectedDirectUserAssignmentCount = portalEffectiveBrownfieldDetectedDirectUserAssignmentCount
 var effectiveBrownfieldDetectedGroupAssignmentCount = portalEffectiveBrownfieldDetectedGroupAssignmentCount
-var effectiveApplicationGroupAssignmentCoverageEvaluated = enableOperationalSummaryRbacDiscovery ? ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0) : brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
-var effectiveApplicationGroupAssignmentsMissing = enableOperationalSummaryRbacDiscovery
-  ? false
-  : (brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0)
-var effectiveApplicationGroupAssignmentsState = enableOperationalSummaryRbacDiscovery
-  ? ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0
-    ? 'DetectedFromPortalPreview'
-    : operationalSummaryRbacDiscoveryState)
-  : (!brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
-    ? 'NotEvaluatedInPortal'
-    : ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal'))
+var effectiveApplicationGroupAssignmentCoverageEvaluated = brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
+var effectiveApplicationGroupAssignmentsMissing = brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0
+var effectiveApplicationGroupAssignmentsState = !brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
+  ? 'NotEvaluatedInPortal'
+  : ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal')
 var operationalSummaryFindings = concat(
   isDay2GenerateOperationalSummary && length(brownfieldDetectedHostPoolDiagnosticSettingNames) == 0 ? [
     {
@@ -900,12 +891,12 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
         accessAssignmentsCoverageEvaluated: effectiveApplicationGroupAssignmentCoverageEvaluated
         accessAssignmentsState: effectiveApplicationGroupAssignmentsState
         assignmentDiscovery: {
-          source: enableOperationalSummaryRbacDiscovery ? 'DeploymentScript' : 'CreateUiDefinition'
+          source: 'CreateUiDefinition'
           state: effectiveApplicationGroupAssignmentsState
           deploymentScriptState: operationalSummaryRbacDiscoveryState
-          identityConfigured: !empty(operationalSummaryRbacDiscoveryManagedIdentityResourceId)
-          queriedScopeCount: shouldRunOperationalSummaryRbacDiscovery ? length(brownfieldDetectedRelatedApplicationGroupIds) : 0
-          assignmentCandidateCount: 0
+          identityConfigured: false
+          queriedScopeCount: length(brownfieldDetectedRelatedApplicationGroupIds)
+          assignmentCandidateCount: length(brownfieldDetectedScopedApplicationGroupAssignments)
           errors: []
         }
       }
@@ -1183,44 +1174,6 @@ module brownfieldAccessAssignments '../modules/brownfieldAccessAssignments.bicep
     remoteAppApplicationGroupNames: relatedRemoteAppApplicationGroupNames
     desktopAccessAssignments: desktopAccessAssignments
     remoteAppAccessAssignments: remoteAppAccessAssignments
-  }
-}
-
-resource operationalSummaryRbacDiscovery 'Microsoft.Resources/deploymentScripts@2023-08-01' = if (shouldRunOperationalSummaryRbacDiscovery) {
-  name: 'ops-summary-rbac-${uniqueString(resourceGroup().id, hostPoolName)}'
-  location: location
-  kind: 'AzureCLI'
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${operationalSummaryRbacDiscoveryIdentityResourceId}': {}
-    }
-  }
-  properties: {
-    azCliVersion: '2.52.0'
-    cleanupPreference: 'Always'
-    forceUpdateTag: deploymentInstanceSeed
-    retentionInterval: 'P1D'
-    timeout: 'PT10M'
-    environmentVariables: [
-      {
-        name: 'RELATED_APP_GROUP_IDS'
-        value: join(brownfieldDetectedRelatedApplicationGroupIds, '|')
-      }
-      {
-        name: 'RELATED_DESKTOP_APP_GROUP_IDS'
-        value: join(brownfieldDetectedRelatedDesktopApplicationGroupIds, '|')
-      }
-      {
-        name: 'RELATED_REMOTE_APP_GROUP_IDS'
-        value: join(brownfieldDetectedRelatedRemoteAppApplicationGroupIds, '|')
-      }
-      {
-        name: 'PREFERRED_APP_GROUP_TYPE'
-        value: operationalSummaryPreferredAppGroupType
-      }
-    ]
-    scriptContent: loadTextContent('../scripts/Discover-OperationalSummaryRbac.sh')
   }
 }
 
@@ -1509,7 +1462,7 @@ output deploymentScenario string = deploymentScenario
 output effectiveAvdMode string = effectiveAvdMode
 output avdRolesAssigned bool = isNewDeployment ? (length(desktopEffectiveAssignments) > 0 || length(remoteAppEffectiveAssignments) > 0) : isDay2UpdateAccessAssignments
 output operationalSummary object = operationalSummaryObject
-output operationalSummaryRbacDiscovery object = shouldRunOperationalSummaryRbacDiscovery ? operationalSummaryRbacDiscovery!.properties.outputs : operationalSummaryRbacDiscoveryDefault
+output operationalSummaryRbacDiscovery object = operationalSummaryRbacDiscoveryDefault
 output operationalGapRegister array = isDay2GenerateOperationalSummary ? operationalSummaryFindings : []
 output operationalSummaryHtml string = operationalSummaryHtml
 output operationalSummaryHtmlDataUri string = operationalSummaryHtmlDataUri
