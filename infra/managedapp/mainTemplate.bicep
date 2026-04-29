@@ -70,8 +70,14 @@ param brownfieldDetectedHostPoolDiagnosticSettingNames array = []
 @description('Workspace names that already have at least one diagnostic setting detected in the selected brownfield host pool resource group.')
 param brownfieldDetectedWorkspacesWithDiagnostics array = []
 
+@description('Whether the managed app UI was able to evaluate workspace diagnostic coverage directly.')
+param brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated bool = false
+
 @description('Application group names that already have at least one diagnostic setting detected in the selected brownfield host pool resource group.')
 param brownfieldDetectedApplicationGroupsWithDiagnostics array = []
+
+@description('Whether the managed app UI was able to evaluate application group diagnostic coverage directly.')
+param brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated bool = false
 
 @description('Detected scaling plan names already attached to the selected brownfield host pool.')
 param brownfieldDetectedScalingPlanNames array = []
@@ -82,14 +88,26 @@ param brownfieldDetectedSessionHostVmNames array = []
 @description('Detected session host VM names that appear to have Azure Monitor Agent installed in the selected host pool resource group.')
 param brownfieldDetectedSessionHostsWithAma array = []
 
+@description('Whether the managed app UI was able to evaluate Azure Monitor Agent coverage directly.')
+param brownfieldDetectedSessionHostAmaCoverageEvaluated bool = false
+
 @description('Detected session host VM names that appear to have data collection rule associations in the selected host pool resource group.')
 param brownfieldDetectedSessionHostsWithDcrAssociation array = []
+
+@description('Whether the managed app UI was able to evaluate session host data collection rule association coverage directly.')
+param brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated bool = false
 
 @description('Detected data collection rule names in the selected host pool resource group.')
 param brownfieldDetectedDataCollectionRuleNames array = []
 
 @description('Detected scaling plan names that already have diagnostic settings in the selected host pool resource group.')
 param brownfieldDetectedScalingPlansWithDiagnostics array = []
+
+@description('Whether the managed app UI was able to evaluate scaling plan diagnostic coverage directly.')
+param brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated bool = false
+
+@description('Whether the managed app UI was able to evaluate application group access assignment coverage directly.')
+param brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated bool = false
 
 @description('Detected subscription-scope Desktop Virtualization Power On Off Contributor assignments in the current subscription.')
 param brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount int = 0
@@ -452,13 +470,19 @@ module sharedSolution '../solution/avdDeploymentCore.bicep' = {
     brownfieldDetectedValidationEnvironment: brownfieldDetectedValidationEnvironment
     brownfieldDetectedHostPoolDiagnosticSettingNames: brownfieldDetectedHostPoolDiagnosticSettingNames
     brownfieldDetectedWorkspacesWithDiagnostics: brownfieldDetectedWorkspacesWithDiagnostics
+    brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated: brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated
     brownfieldDetectedApplicationGroupsWithDiagnostics: brownfieldDetectedApplicationGroupsWithDiagnostics
+    brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated: brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated
     brownfieldDetectedScalingPlanNames: brownfieldDetectedScalingPlanNames
     brownfieldDetectedSessionHostVmNames: brownfieldDetectedSessionHostVmNames
     brownfieldDetectedSessionHostsWithAma: brownfieldDetectedSessionHostsWithAma
+    brownfieldDetectedSessionHostAmaCoverageEvaluated: brownfieldDetectedSessionHostAmaCoverageEvaluated
     brownfieldDetectedSessionHostsWithDcrAssociation: brownfieldDetectedSessionHostsWithDcrAssociation
+    brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated: brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated
     brownfieldDetectedDataCollectionRuleNames: brownfieldDetectedDataCollectionRuleNames
     brownfieldDetectedScalingPlansWithDiagnostics: brownfieldDetectedScalingPlansWithDiagnostics
+    brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated: brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated
+    brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated: brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
     brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount: brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount
     brownfieldDetectedSubscriptionApplicationGroupAssignments: brownfieldDetectedSubscriptionApplicationGroupAssignments
     brownfieldDetectedDesktopAssignmentCount: brownfieldDetectedDesktopAssignmentCount

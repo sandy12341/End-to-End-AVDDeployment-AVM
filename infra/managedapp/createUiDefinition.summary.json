@@ -145,39 +145,6 @@
             }
           },
           {
-            "name": "diagnosticCoverageBatchApi",
-            "type": "Microsoft.Solutions.ArmApiControl",
-            "request": {
-              "method": "POST",
-              "path": "[concat('/batch?api-version=2020-06-01')]",
-              "body": {
-                "requests": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), concat(map(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => parse(concat('{\"httpMethod\":\"GET\",\"name\":\"workspaceDiag-', workspace.name, '\",\"url\":\"', workspace.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview\"}'))), map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id)))), (appGroup) => parse(concat('{\"httpMethod\":\"GET\",\"name\":\"appGroupDiag-', appGroup.name, '\",\"url\":\"', appGroup.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview\"}'))), map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id)), (plan) => parse(concat('{\"httpMethod\":\"GET\",\"name\":\"scalingPlanDiag-', plan.name, '\",\"url\":\"', plan.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview\"}')))), parse('[]'))]"
-              }
-            }
-          },
-          {
-            "name": "sessionHostExtensionsBatchApi",
-            "type": "Microsoft.Solutions.ArmApiControl",
-            "request": {
-              "method": "POST",
-              "path": "[concat('/batch?api-version=2020-06-01')]",
-              "body": {
-                "requests": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), map(filter(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => and(contains(sessionHost, 'properties'), contains(sessionHost.properties, 'resourceId'), not(empty(string(sessionHost.properties.resourceId))))), (sessionHost) => parse(concat('{\"httpMethod\":\"GET\",\"name\":\"vmExtensions-', last(split(sessionHost.properties.resourceId, '/')), '\",\"url\":\"', sessionHost.properties.resourceId, '/extensions?api-version=2023-09-01\"}'))), parse('[]'))]"
-              }
-            }
-          },
-          {
-            "name": "sessionHostDcrBatchApi",
-            "type": "Microsoft.Solutions.ArmApiControl",
-            "request": {
-              "method": "POST",
-              "path": "[concat('/batch?api-version=2020-06-01')]",
-              "body": {
-                "requests": "[if(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), map(filter(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => and(contains(sessionHost, 'properties'), contains(sessionHost.properties, 'resourceId'), not(empty(string(sessionHost.properties.resourceId))))), (sessionHost) => parse(concat('{\"httpMethod\":\"GET\",\"name\":\"vmDcr-', last(split(sessionHost.properties.resourceId, '/')), '\",\"url\":\"', sessionHost.properties.resourceId, '/providers/Microsoft.Insights/dataCollectionRuleAssociations?api-version=2022-06-01\"}'))), parse('[]'))]"
-              }
-            }
-          },
-          {
             "name": "dataCollectionRulesApi",
             "type": "Microsoft.Solutions.ArmApiControl",
             "request": {
@@ -415,14 +382,20 @@
       "brownfieldDetectedStartVmOnConnect": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'startVMOnConnect')), steps('brownfieldTarget').selectedHostPoolApi.properties.startVMOnConnect, false)]",
       "brownfieldDetectedValidationEnvironment": "[if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'validationEnvironment')), steps('brownfieldTarget').selectedHostPoolApi.properties.validationEnvironment, false)]",
       "brownfieldDetectedHostPoolDiagnosticSettingNames": "[map(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')), (setting) => setting.name)]",
-      "brownfieldDetectedWorkspacesWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')), (workspace) => greater(length(filter(if(contains(steps('brownfieldTarget').diagnosticCoverageBatchApi, 'responses'), steps('brownfieldTarget').diagnosticCoverageBatchApi.responses, parse('[]')), (response) => and(equals(response.name, concat('workspaceDiag-', workspace.name)), equals(response.httpStatusCode, 200), contains(response, 'content'), contains(response.content, 'value'), greater(length(response.content.value), 0)))), 0)), (workspace) => workspace.name)]",
-      "brownfieldDetectedApplicationGroupsWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), greater(length(filter(if(contains(steps('brownfieldTarget').diagnosticCoverageBatchApi, 'responses'), steps('brownfieldTarget').diagnosticCoverageBatchApi.responses, parse('[]')), (response) => and(equals(response.name, concat('appGroupDiag-', appGroup.name)), equals(response.httpStatusCode, 200), contains(response, 'content'), contains(response.content, 'value'), greater(length(response.content.value), 0)))), 0))), (appGroup) => appGroup.name)]",
+      "brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated": false,
+      "brownfieldDetectedWorkspacesWithDiagnostics": [],
+      "brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated": false,
+      "brownfieldDetectedApplicationGroupsWithDiagnostics": [],
       "brownfieldDetectedScalingPlanNames": "[map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id)), (plan) => plan.name)]",
       "brownfieldDetectedSessionHostVmNames": "[map(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => if(and(contains(sessionHost, 'properties'), contains(sessionHost.properties, 'resourceId'), not(empty(string(sessionHost.properties.resourceId)))), last(split(sessionHost.properties.resourceId, '/')), first(split(last(split(sessionHost.name, '/')), '.'))))]",
-      "brownfieldDetectedSessionHostsWithAma": "[map(filter(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => and(contains(sessionHost, 'properties'), contains(sessionHost.properties, 'resourceId'), not(empty(string(sessionHost.properties.resourceId))), greater(length(filter(if(contains(steps('brownfieldTarget').sessionHostExtensionsBatchApi, 'responses'), steps('brownfieldTarget').sessionHostExtensionsBatchApi.responses, parse('[]')), (response) => and(equals(response.name, concat('vmExtensions-', last(split(sessionHost.properties.resourceId, '/')))), equals(response.httpStatusCode, 200), contains(response, 'content'), contains(response.content, 'value'), greater(length(filter(response.content.value, (extension) => equals(toLower(string(extension.name)), 'azuremonitorwindowsagent'))), 0)))), 0))), (sessionHost) => last(split(sessionHost.properties.resourceId, '/')))]",
-      "brownfieldDetectedSessionHostsWithDcrAssociation": "[map(filter(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')), (sessionHost) => and(contains(sessionHost, 'properties'), contains(sessionHost.properties, 'resourceId'), not(empty(string(sessionHost.properties.resourceId))), greater(length(filter(if(contains(steps('brownfieldTarget').sessionHostDcrBatchApi, 'responses'), steps('brownfieldTarget').sessionHostDcrBatchApi.responses, parse('[]')), (response) => and(equals(response.name, concat('vmDcr-', last(split(sessionHost.properties.resourceId, '/')))), equals(response.httpStatusCode, 200), contains(response, 'content'), contains(response.content, 'value'), greater(length(response.content.value), 0)))), 0))), (sessionHost) => last(split(sessionHost.properties.resourceId, '/')))]",
+      "brownfieldDetectedSessionHostAmaCoverageEvaluated": false,
+      "brownfieldDetectedSessionHostsWithAma": [],
+      "brownfieldDetectedSessionHostsWithDcrAssociation": [],
+      "brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated": false,
       "brownfieldDetectedDataCollectionRuleNames": "[map(if(contains(steps('brownfieldTarget').dataCollectionRulesApi, 'value'), steps('brownfieldTarget').dataCollectionRulesApi.value, parse('[]')), (resource) => resource.name)]",
-      "brownfieldDetectedScalingPlansWithDiagnostics": "[map(filter(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')), (plan) => and(contains(string(plan.properties.hostPoolReferences), steps('brownfieldTarget').selectedHostPool.id), greater(length(filter(if(contains(steps('brownfieldTarget').diagnosticCoverageBatchApi, 'responses'), steps('brownfieldTarget').diagnosticCoverageBatchApi.responses, parse('[]')), (response) => and(equals(response.name, concat('scalingPlanDiag-', plan.name)), equals(response.httpStatusCode, 200), contains(response, 'content'), contains(response.content, 'value'), greater(length(response.content.value), 0)))), 0))), (plan) => plan.name)]",
+      "brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated": false,
+      "brownfieldDetectedScalingPlansWithDiagnostics": [],
+      "brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated": "[and(and(contains(steps('brownfieldTarget').selectedHostPool, 'id'), not(empty(steps('brownfieldTarget').selectedHostPool.id))), contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'))]",
       "brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => and(equals(toLower(string(assignment.properties.scope)), toLower(concat('/subscriptions/', subscription().subscriptionId))), contains(toLower(string(assignment.properties.roleDefinitionId)), '/40c5ff49-9181-41f8-ae61-143b0e78555e'))))]",
       "brownfieldDetectedSubscriptionApplicationGroupAssignments": "[map(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => contains(toLower(string(assignment.properties.scope)), '/providers/microsoft.desktopvirtualization/applicationgroups/')), (assignment) => parse(concat('{\"scope\":\"', toLower(string(assignment.properties.scope)), '\",\"principalType\":\"', string(assignment.properties.principalType), '\",\"roleDefinitionId\":\"', toLower(string(assignment.properties.roleDefinitionId)), '\"}')))]",
       "brownfieldDetectedDesktopAssignmentCount": "[length(filter(if(contains(steps('brownfieldTarget').subscriptionRoleAssignmentsApi, 'value'), steps('brownfieldTarget').subscriptionRoleAssignmentsApi.value, parse('[]')), (assignment) => greater(length(filter(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')), (appGroup) => and(equals(toLower(string(appGroup.properties.hostPoolArmPath)), toLower(string(steps('brownfieldTarget').selectedHostPool.id))), equals(appGroup.properties.applicationGroupType, 'Desktop'), equals(toLower(string(assignment.properties.scope)), toLower(string(appGroup.id)))))), 0)))]",

@@ -190,6 +190,9 @@ param brownfieldDetectedScalingPlanNames array = []
 @description('Detected session host VM names currently registered to the selected brownfield host pool.')
 param brownfieldDetectedSessionHostVmNames array = []
 
+@description('Whether application group access assignment coverage was evaluated directly by the invoking workflow.')
+param brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated bool = false
+
 @description('Detected role assignment count across related desktop application groups.')
 param brownfieldDetectedDesktopAssignmentCount int = 0
 
@@ -507,7 +510,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
     {
       code: 'APPLICATION_GROUP_ASSIGNMENTS_MISSING'
       severity: 'High'
@@ -520,7 +523,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'UpdateAccessAssignments'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && brownfieldDetectedDirectUserAssignmentCount > 0 ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && brownfieldDetectedDirectUserAssignmentCount > 0 ? [
     {
       code: 'DIRECT_USER_ASSIGNMENTS_DETECTED'
       severity: 'Low'
@@ -661,7 +664,10 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
         remoteAppAssignmentCount: brownfieldDetectedRemoteAppAssignmentCount
         directUserAssignmentCount: brownfieldDetectedDirectUserAssignmentCount
         groupAssignmentCount: brownfieldDetectedGroupAssignmentCount
-        accessAssignmentsState: (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal'
+        accessAssignmentsCoverageEvaluated: brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
+        accessAssignmentsState: !brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
+          ? 'NotEvaluatedInPortal'
+          : ((brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal')
       }
       fslogixPosture: {
         assessmentState: operationalSummaryFslogixAssessmentProvided ? 'Assessed' : 'NotAssessed'

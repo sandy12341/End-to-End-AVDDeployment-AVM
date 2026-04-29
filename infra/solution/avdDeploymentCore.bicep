@@ -199,8 +199,14 @@ param brownfieldDetectedHostPoolDiagnosticSettingNames array = []
 @description('Workspace names that already have at least one diagnostic setting detected in the selected brownfield host pool resource group.')
 param brownfieldDetectedWorkspacesWithDiagnostics array = []
 
+@description('Whether workspace diagnostic coverage was evaluated directly by the managed app UI discovery flow.')
+param brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated bool = false
+
 @description('Application group names that already have at least one diagnostic setting detected in the selected brownfield host pool resource group.')
 param brownfieldDetectedApplicationGroupsWithDiagnostics array = []
+
+@description('Whether application group diagnostic coverage was evaluated directly by the managed app UI discovery flow.')
+param brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated bool = false
 
 @description('Detected scaling plan names already attached to the selected brownfield host pool.')
 param brownfieldDetectedScalingPlanNames array = []
@@ -211,14 +217,26 @@ param brownfieldDetectedSessionHostVmNames array = []
 @description('Detected session host VM names that appear to have Azure Monitor Agent installed in the selected host pool resource group.')
 param brownfieldDetectedSessionHostsWithAma array = []
 
+@description('Whether Azure Monitor Agent coverage was evaluated directly by the managed app UI discovery flow.')
+param brownfieldDetectedSessionHostAmaCoverageEvaluated bool = false
+
 @description('Detected session host VM names that appear to have data collection rule associations in the selected host pool resource group.')
 param brownfieldDetectedSessionHostsWithDcrAssociation array = []
+
+@description('Whether session host data collection rule association coverage was evaluated directly by the managed app UI discovery flow.')
+param brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated bool = false
 
 @description('Detected data collection rule names in the selected host pool resource group.')
 param brownfieldDetectedDataCollectionRuleNames array = []
 
 @description('Detected scaling plan names that already have diagnostic settings in the selected host pool resource group.')
 param brownfieldDetectedScalingPlansWithDiagnostics array = []
+
+@description('Whether scaling plan diagnostic coverage was evaluated directly by the managed app UI discovery flow.')
+param brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated bool = false
+
+@description('Whether application group access assignment coverage was evaluated directly by the managed app UI discovery flow.')
+param brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated bool = false
 
 @description('Detected subscription-scope Desktop Virtualization Power On Off Contributor assignments in the current subscription.')
 param brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount int = 0
@@ -569,7 +587,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'ManualFollowUp'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && length(existingWorkspaceNames) > 0 && length(brownfieldDetectedWorkspacesWithDiagnostics) < length(existingWorkspaceNames) ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated && length(existingWorkspaceNames) > 0 && length(brownfieldDetectedWorkspacesWithDiagnostics) < length(existingWorkspaceNames) ? [
     {
       code: 'WORKSPACE_DIAGNOSTICS_PARTIAL_OR_MISSING'
       severity: 'Medium'
@@ -582,7 +600,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && length(relatedApplicationGroupNames) > 0 && length(brownfieldDetectedApplicationGroupsWithDiagnostics) < length(relatedApplicationGroupNames) ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated && length(relatedApplicationGroupNames) > 0 && length(brownfieldDetectedApplicationGroupsWithDiagnostics) < length(relatedApplicationGroupNames) ? [
     {
       code: 'APPLICATION_GROUP_DIAGNOSTICS_PARTIAL_OR_MISSING'
       severity: 'Medium'
@@ -595,7 +613,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && length(brownfieldDetectedSessionHostVmNames) > 0 && length(brownfieldDetectedSessionHostsWithAma) < length(brownfieldDetectedSessionHostVmNames) ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedSessionHostAmaCoverageEvaluated && length(brownfieldDetectedSessionHostVmNames) > 0 && length(brownfieldDetectedSessionHostsWithAma) < length(brownfieldDetectedSessionHostVmNames) ? [
     {
       code: 'SESSION_HOST_AMA_PARTIAL_OR_MISSING'
       severity: 'Medium'
@@ -608,7 +626,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && length(brownfieldDetectedSessionHostVmNames) > 0 && length(brownfieldDetectedSessionHostsWithDcrAssociation) < length(brownfieldDetectedSessionHostVmNames) ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated && length(brownfieldDetectedSessionHostVmNames) > 0 && length(brownfieldDetectedSessionHostsWithDcrAssociation) < length(brownfieldDetectedSessionHostVmNames) ? [
     {
       code: 'SESSION_HOST_DCR_ASSOCIATION_PARTIAL_OR_MISSING'
       severity: 'Medium'
@@ -621,7 +639,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'AlignMonitoringPosture'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
     {
       code: 'APPLICATION_GROUP_ASSIGNMENTS_MISSING'
       severity: 'High'
@@ -634,7 +652,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'UpdateAccessAssignments'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && effectiveBrownfieldDetectedDirectUserAssignmentCount > 0 ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && effectiveBrownfieldDetectedDirectUserAssignmentCount > 0 ? [
     {
       code: 'DIRECT_USER_ASSIGNMENTS_DETECTED'
       severity: 'Low'
@@ -699,7 +717,7 @@ var operationalSummaryFindings = concat(
       recommendedActionName: 'ManualFollowUp'
     }
   ] : [],
-  isDay2GenerateOperationalSummary && effectiveHostPoolType == 'Pooled' && length(brownfieldDetectedScalingPlanNames) > 0 && length(brownfieldDetectedScalingPlansWithDiagnostics) < length(brownfieldDetectedScalingPlanNames) ? [
+  isDay2GenerateOperationalSummary && brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated && effectiveHostPoolType == 'Pooled' && length(brownfieldDetectedScalingPlanNames) > 0 && length(brownfieldDetectedScalingPlansWithDiagnostics) < length(brownfieldDetectedScalingPlanNames) ? [
     {
       code: 'SCALING_PLAN_DIAGNOSTICS_PARTIAL_OR_MISSING'
       severity: 'Medium'
@@ -784,35 +802,53 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
         workspaceDiagnosticsCoverage: {
           relatedWorkspaceCount: length(existingWorkspaceNames)
           workspacesWithDiagnostics: brownfieldDetectedWorkspacesWithDiagnostics
+          coverageEvaluated: brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated
           coverageState: length(existingWorkspaceNames) == 0
             ? 'NotApplicable'
-            : (length(brownfieldDetectedWorkspacesWithDiagnostics) == length(existingWorkspaceNames) ? 'Complete' : 'PartialOrMissing')
+            : (!brownfieldDetectedWorkspaceDiagnosticsCoverageEvaluated
+              ? 'NotEvaluatedInPortal'
+              : (length(brownfieldDetectedWorkspacesWithDiagnostics) == length(existingWorkspaceNames) ? 'Complete' : 'PartialOrMissing'))
         }
         applicationGroupDiagnosticsCoverage: {
           relatedApplicationGroupCount: length(relatedApplicationGroupNames)
           applicationGroupsWithDiagnostics: brownfieldDetectedApplicationGroupsWithDiagnostics
+          coverageEvaluated: brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated
           coverageState: length(relatedApplicationGroupNames) == 0
             ? 'NotApplicable'
-            : (length(brownfieldDetectedApplicationGroupsWithDiagnostics) == length(relatedApplicationGroupNames) ? 'Complete' : 'PartialOrMissing')
+            : (!brownfieldDetectedApplicationGroupDiagnosticsCoverageEvaluated
+              ? 'NotEvaluatedInPortal'
+              : (length(brownfieldDetectedApplicationGroupsWithDiagnostics) == length(relatedApplicationGroupNames) ? 'Complete' : 'PartialOrMissing'))
         }
         controlPlaneCoverage: length(brownfieldDetectedHostPoolDiagnosticSettingNames) > 0 ? 'HostPoolDetected' : 'NoneDetected'
         guestMonitoringCoverage: {
           assessmentScope: 'InferredFromHostPoolResourceGroup'
           discoveredSessionHostCount: length(brownfieldDetectedSessionHostVmNames)
           sessionHostsWithAma: brownfieldDetectedSessionHostsWithAma
+          amaCoverageEvaluated: brownfieldDetectedSessionHostAmaCoverageEvaluated
           sessionHostsWithDcrAssociation: brownfieldDetectedSessionHostsWithDcrAssociation
+          dcrAssociationCoverageEvaluated: brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated
           dataCollectionRuleNames: brownfieldDetectedDataCollectionRuleNames
           coverageState: length(brownfieldDetectedSessionHostVmNames) == 0
             ? 'NotApplicable'
-            : (length(brownfieldDetectedSessionHostsWithAma) == length(brownfieldDetectedSessionHostVmNames) && length(brownfieldDetectedSessionHostsWithDcrAssociation) == length(brownfieldDetectedSessionHostVmNames)
-              ? 'Complete'
-              : 'PartialOrMissing')
+            : !brownfieldDetectedSessionHostAmaCoverageEvaluated && !brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated
+              ? 'NotEvaluatedInPortal'
+              : !brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated
+                ? (length(brownfieldDetectedSessionHostsWithAma) == length(brownfieldDetectedSessionHostVmNames)
+                  ? 'AmaOnlyVerified'
+                  : 'PartialOrMissing')
+                : (length(brownfieldDetectedSessionHostsWithAma) == length(brownfieldDetectedSessionHostVmNames) && length(brownfieldDetectedSessionHostsWithDcrAssociation) == length(brownfieldDetectedSessionHostVmNames)
+                  ? 'Complete'
+                  : 'PartialOrMissing')
         }
         guestMonitoringState: length(brownfieldDetectedSessionHostVmNames) == 0
           ? 'NotApplicable'
-          : (length(brownfieldDetectedSessionHostsWithAma) == length(brownfieldDetectedSessionHostVmNames) && length(brownfieldDetectedSessionHostsWithDcrAssociation) == length(brownfieldDetectedSessionHostVmNames)
-            ? 'Complete'
-            : 'PartialOrMissing')
+          : !brownfieldDetectedSessionHostAmaCoverageEvaluated && !brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated
+            ? 'NotEvaluatedInPortal'
+            : !brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated
+              ? 'AmaCoverageVerifiedOnly'
+              : (length(brownfieldDetectedSessionHostsWithAma) == length(brownfieldDetectedSessionHostVmNames) && length(brownfieldDetectedSessionHostsWithDcrAssociation) == length(brownfieldDetectedSessionHostVmNames)
+                ? 'Complete'
+                : 'PartialOrMissing')
       }
       identityPosture: {
         authenticationType: operationalSummaryAuthenticationType
@@ -820,7 +856,10 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
         remoteAppAssignmentCount: effectiveBrownfieldDetectedRemoteAppAssignmentCount
         directUserAssignmentCount: effectiveBrownfieldDetectedDirectUserAssignmentCount
         groupAssignmentCount: effectiveBrownfieldDetectedGroupAssignmentCount
-        accessAssignmentsState: (effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal'
+        accessAssignmentsCoverageEvaluated: brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
+        accessAssignmentsState: !brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
+          ? 'NotEvaluatedInPortal'
+          : ((effectiveBrownfieldDetectedDesktopAssignmentCount + effectiveBrownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal')
       }
       fslogixPosture: {
         assessmentState: operationalSummaryFslogixAssessmentProvided ? 'Assessed' : 'NotAssessed'
@@ -848,10 +887,13 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
             ? (brownfieldDetectedSubscriptionPowerOnOffContributorAssignmentCount > 0 ? 'DetectedAtSubscriptionScope' : 'MissingAtSubscriptionScope')
             : 'NotApplicable'
           scalingPlansWithDiagnostics: brownfieldDetectedScalingPlansWithDiagnostics
+          scalingPlanDiagnosticsCoverageEvaluated: brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated
           scalingPlanDiagnosticsState: effectiveHostPoolType == 'Pooled'
             ? (length(brownfieldDetectedScalingPlanNames) == 0
               ? 'NotApplicable'
-              : (length(brownfieldDetectedScalingPlansWithDiagnostics) == length(brownfieldDetectedScalingPlanNames) ? 'Complete' : 'PartialOrMissing'))
+              : (!brownfieldDetectedScalingPlanDiagnosticsCoverageEvaluated
+                ? 'NotEvaluatedInPortal'
+                : (length(brownfieldDetectedScalingPlansWithDiagnostics) == length(brownfieldDetectedScalingPlanNames) ? 'Complete' : 'PartialOrMissing')))
             : 'NotApplicable'
         }
         maxSessionLimit: brownfieldDetectedMaxSessionLimit
@@ -959,8 +1001,8 @@ var operationalSummaryHtml = isDay2GenerateOperationalSummary
       '        <tr><td>Detected application groups</td><td>${string(length(relatedApplicationGroupNames))}</td></tr>'
       '        <tr><td>Detected workspaces</td><td>${string(length(existingWorkspaceNames))}</td></tr>'
       '        <tr><td>Detected session hosts</td><td>${string(length(brownfieldDetectedSessionHostVmNames))}</td></tr>'
-      '        <tr><td>Session hosts with AMA</td><td>${string(length(brownfieldDetectedSessionHostsWithAma))}</td></tr>'
-      '        <tr><td>Session hosts with DCR association</td><td>${string(length(brownfieldDetectedSessionHostsWithDcrAssociation))}</td></tr>'
+      '        <tr><td>Session hosts with AMA</td><td>${brownfieldDetectedSessionHostAmaCoverageEvaluated ? string(length(brownfieldDetectedSessionHostsWithAma)) : 'NotEvaluatedInPortal'}</td></tr>'
+      '        <tr><td>Session hosts with DCR association</td><td>${brownfieldDetectedSessionHostDcrAssociationCoverageEvaluated ? string(length(brownfieldDetectedSessionHostsWithDcrAssociation)) : 'NotEvaluatedInPortal'}</td></tr>'
       '        <tr><td>Guest monitoring state</td><td>${operationalSummaryObject.monitoringPosture.guestMonitoringState}</td></tr>'
       '        <tr><td>Max session limit</td><td>${string(brownfieldDetectedMaxSessionLimit)}</td></tr>'
       '        <tr><td>Start VM on Connect</td><td>${brownfieldDetectedStartVmOnConnect ? 'Enabled' : 'DisabledOrNotDetected'}</td></tr>'
@@ -968,6 +1010,8 @@ var operationalSummaryHtml = isDay2GenerateOperationalSummary
       '        <tr><td>Scaling plan state</td><td>${operationalSummaryObject.resiliencePosture.scalingPlanState}</td></tr>'
       '        <tr><td>Scaling plan diagnostics</td><td>${operationalSummaryObject.resiliencePosture.autoscaleReadiness.scalingPlanDiagnosticsState}</td></tr>'
       '        <tr><td>Autoscale power role</td><td>${operationalSummaryObject.resiliencePosture.autoscaleReadiness.powerRoleState}</td></tr>'
+      '        <tr><td>Workspace diagnostics coverage</td><td>${operationalSummaryObject.monitoringPosture.workspaceDiagnosticsCoverage.coverageState}</td></tr>'
+      '        <tr><td>Application group diagnostics coverage</td><td>${operationalSummaryObject.monitoringPosture.applicationGroupDiagnosticsCoverage.coverageState}</td></tr>'
       '      </tbody>'
       '    </table>'
       '  </div>'
