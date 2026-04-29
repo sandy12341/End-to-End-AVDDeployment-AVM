@@ -56,6 +56,17 @@ public sealed record ReportArtifact(
     string? BlobUri,
     string? PortalUri);
 
+public sealed record OperationalSummaryReportManifest(
+    string SchemaVersion,
+    string HostPoolResourceId,
+    string? WorkspaceResourceId,
+    string? ManagedApplicationResourceId,
+    string RunId,
+    DateTimeOffset GeneratedAt,
+    string OverallStatus,
+    string DiscoveryConfidence,
+    IReadOnlyList<ReportArtifact> ReportArtifacts);
+
 public sealed record PrincipalValidationEvidence(
     string PrincipalId,
     string PrincipalType,

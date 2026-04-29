@@ -7,7 +7,7 @@ using OperationalSummary.Functions.Models;
 
 namespace OperationalSummary.Functions.Services;
 
-public sealed class BlobReportArtifactWriter : IReportArtifactWriter
+public sealed class BlobReportArtifactWriter : IReportArtifactWriter, IReportManifestReader
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -41,16 +41,41 @@ public sealed class BlobReportArtifactWriter : IReportArtifactWriter
         var reportPath = BuildReportPath(report);
         var jsonBlobName = $"{reportPath}/summary.json";
         var htmlBlobName = $"{reportPath}/summary.html";
+        var latestManifestBlobName = BuildLatestManifestBlobName(report.Target.HostPoolResourceId);
 
-        var jsonReport = JsonSerializer.Serialize(report with { ReportArtifacts = Array.Empty<ReportArtifact>() }, JsonOptions);
-        await UploadTextAsync(jsonBlobName, jsonReport, "application/json", cancellationToken);
-        await UploadTextAsync(htmlBlobName, htmlReport, "text/html", cancellationToken);
-
-        return new[]
+        var artifacts = new[]
         {
             CreateArtifact("Json", "application/json", jsonBlobName),
-            CreateArtifact("Html", "text/html", htmlBlobName)
+            CreateArtifact("Html", "text/html", htmlBlobName),
+            CreateArtifact("LatestManifest", "application/json", latestManifestBlobName)
         };
+
+        var reportWithArtifacts = report with { ReportArtifacts = artifacts };
+        var manifest = CreateManifest(reportWithArtifacts);
+        var jsonReport = JsonSerializer.Serialize(reportWithArtifacts, JsonOptions);
+        var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
+        await UploadTextAsync(jsonBlobName, jsonReport, "application/json", cancellationToken);
+        await UploadTextAsync(htmlBlobName, htmlReport, "text/html", cancellationToken);
+        await UploadTextAsync(latestManifestBlobName, manifestJson, "application/json", cancellationToken);
+
+        return artifacts;
+    }
+
+    public async Task<OperationalSummaryReportManifest?> GetLatestAsync(string hostPoolResourceId, CancellationToken cancellationToken)
+    {
+        if (containerClient is null || string.IsNullOrWhiteSpace(hostPoolResourceId))
+        {
+            return null;
+        }
+
+        var blobClient = containerClient.GetBlobClient(BuildLatestManifestBlobName(hostPoolResourceId));
+        if (!await blobClient.ExistsAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var response = await blobClient.DownloadContentAsync(cancellationToken);
+        return response.Value.Content.ToObjectFromJson<OperationalSummaryReportManifest>(JsonOptions);
     }
 
     private async Task UploadTextAsync(string blobName, string content, string contentType, CancellationToken cancellationToken)
@@ -73,14 +98,38 @@ public sealed class BlobReportArtifactWriter : IReportArtifactWriter
             null);
     }
 
+    private static OperationalSummaryReportManifest CreateManifest(OperationalSummaryReport report) =>
+        new(
+            SchemaVersion: "2026-04-report-manifest-1",
+            HostPoolResourceId: report.Target.HostPoolResourceId,
+            WorkspaceResourceId: report.Target.WorkspaceResourceId,
+            ManagedApplicationResourceId: report.Target.ManagedApplicationResourceId,
+            RunId: report.RunId,
+            GeneratedAt: report.GeneratedAt,
+            OverallStatus: report.Overview.OverallStatus,
+            DiscoveryConfidence: report.DiscoveryConfidence,
+            ReportArtifacts: report.ReportArtifacts);
+
     private string BuildReportPath(OperationalSummaryReport report)
     {
-        var hostPoolResourceId = report.Target.HostPoolResourceId.Trim('/');
-        var safeScope = hostPoolResourceId.Replace('/', '-').Replace(':', '-');
+        var safeScope = BuildSafeScope(report.Target.HostPoolResourceId);
         var basePath = string.IsNullOrWhiteSpace(pathPrefix) ? string.Empty : pathPrefix.Trim('/');
 
         return string.IsNullOrWhiteSpace(basePath)
             ? $"{safeScope}/{report.RunId}"
             : $"{basePath}/{safeScope}/{report.RunId}";
     }
+
+    private string BuildLatestManifestBlobName(string hostPoolResourceId)
+    {
+        var safeScope = BuildSafeScope(hostPoolResourceId);
+        var basePath = string.IsNullOrWhiteSpace(pathPrefix) ? string.Empty : pathPrefix.Trim('/');
+
+        return string.IsNullOrWhiteSpace(basePath)
+            ? $"{safeScope}/latest.json"
+            : $"{basePath}/{safeScope}/latest.json";
+    }
+
+    private static string BuildSafeScope(string hostPoolResourceId) =>
+        hostPoolResourceId.Trim('/').Replace('/', '-').Replace(':', '-');
 }

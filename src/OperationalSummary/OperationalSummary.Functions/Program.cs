@@ -14,7 +14,9 @@ builder.Services
 
 builder.Services.AddSingleton<RoleAssignmentClassifier>();
 builder.Services.AddSingleton<IOperationalSummaryReportRenderer, HtmlOperationalSummaryReportRenderer>();
-builder.Services.AddSingleton<IReportArtifactWriter, BlobReportArtifactWriter>();
+builder.Services.AddSingleton<BlobReportArtifactWriter>();
+builder.Services.AddSingleton<IReportArtifactWriter>(provider => provider.GetRequiredService<BlobReportArtifactWriter>());
+builder.Services.AddSingleton<IReportManifestReader>(provider => provider.GetRequiredService<BlobReportArtifactWriter>());
 builder.Services.AddSingleton<IPrincipalValidator, GraphGroupPrincipalValidator>();
 builder.Services.AddSingleton<IAvdDiscoveryClient, ArmAvdDiscoveryClient>();
 builder.Services.AddSingleton<IManagedApplicationSummaryRequestResolver, ArmManagedApplicationSummaryRequestResolver>();

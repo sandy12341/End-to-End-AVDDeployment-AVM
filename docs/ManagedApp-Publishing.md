@@ -300,6 +300,25 @@ Invoke-RestMethod `
 
 Validation is successful only after the report storage container contains both `summary.json` and `summary.html` for the run, and the HTML report shows persona views plus evidence-backed findings. Enable `enableManagedAppEventGridTrigger` only after this manual path succeeds.
 
+Each successful collector run also writes a stable `latest.json` manifest for the selected host pool. The manifest points to the latest private JSON and HTML report blobs without making the container public.
+
+```powershell
+$LatestFunctionKey = az functionapp function keys list `
+  --resource-group $CollectorResourceGroup `
+  --name $FunctionAppName `
+  --function-name GetLatestOperationalSummary `
+  --query default `
+  -o tsv
+
+$EncodedHostPoolResourceId = [System.Uri]::EscapeDataString('/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/hostPools/hp-avd-avd1-dev33')
+
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "https://$FunctionAppName.azurewebsites.net/api/operational-summary/latest?hostPoolResourceId=$EncodedHostPoolResourceId&code=$LatestFunctionKey"
+```
+
+The latest manifest route is function-key protected and returns private blob artifact metadata. Report blobs remain private and require approved storage data-plane access to open directly.
+
 ### Collector Event Grid Validation Path
 
 Use [infra/operational-summary/main.eventgrid.validation.bicepparam](../infra/operational-summary/main.eventgrid.validation.bicepparam) after manual validation succeeds. This keeps the default/manual parameter file safe while making the managed application write-event path repeatable.
@@ -331,6 +350,8 @@ Expected Event Grid resources:
 - Destination: `GenerateOperationalSummaryFromManagedAppEvent` on `funcfc-avd-ops-summary-hvq4vogx`
 
 The validation subscription currently has managed application definitions but no installed `Microsoft.Solutions/applications` instance. Event Grid resource provisioning can be validated immediately, but an end-to-end write-event report requires launching or updating an installed managed application instance so Azure emits a matching `Microsoft.Solutions/applications/write` event.
+
+After an Event Grid-triggered run completes, use `GetLatestOperationalSummary` with the selected host pool resource ID to retrieve the latest manifest and locate the corresponding private `summary.html` artifact.
 
 After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
 
@@ -383,7 +404,7 @@ Do not publish placeholder URLs in the repo before the definitions are live.
 
 ## Operational Summary Outputs
 
-For `Generate Operational Summary`, the useful outputs are on the managed application deployment inside the managed resource group, not on the application definition resource in `rg-avd-managedapp-def-avm`.
+For the portal-only `Generate Operational Summary` deployment, the immediate ARM outputs are on the managed application deployment inside the managed resource group, not on the application definition resource in `rg-avd-managedapp-def-avm`.
 
 After an operator runs the definition:
 
@@ -399,6 +420,12 @@ The output keys to look for are:
 - `operationalSummaryHtmlDataUri`: a `data:text/html;base64,...` URI for opening the same report directly in a browser or another viewer that accepts data URIs.
 
 If the outer deployment under `rg-avd-managedapp-def-avm` shows empty outputs, that is expected. The actual report outputs live on the nested deployment in the managed resource group.
+
+For the collector-backed report, the durable outputs are private blob artifacts in the collector report storage account. The preferred retrieval flow is:
+
+1. Call `GetLatestOperationalSummary` with the selected host pool resource ID.
+2. Read the returned `ReportArtifacts` entries for `Json`, `Html`, and `LatestManifest`.
+3. Open the `Html` blob only with approved storage data-plane access; do not make the container public.
 
 ## Current Published State
 
