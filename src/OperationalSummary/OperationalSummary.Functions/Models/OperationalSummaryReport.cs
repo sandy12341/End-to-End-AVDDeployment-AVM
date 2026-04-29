@@ -9,6 +9,7 @@ public sealed record OperationalSummaryReport(
     string DiscoveryConfidence,
     IReadOnlyList<OperationalSummaryFinding> Findings,
     IReadOnlyList<RoleAssignmentEvidence> RoleAssignmentEvidence,
+    IReadOnlyList<PrincipalValidationEvidence> PrincipalValidationEvidence,
     OperationalSummaryOverview Overview,
     IReadOnlyList<OperationalPersonaView> PersonaViews,
     IReadOnlyList<DiscoveryMessage> DiscoveryMessages,
@@ -54,3 +55,10 @@ public sealed record ReportArtifact(
     string Name,
     string? BlobUri,
     string? PortalUri);
+
+public sealed record PrincipalValidationEvidence(
+    string PrincipalId,
+    string PrincipalType,
+    string ValidationState,
+    string? DisplayName,
+    string? Message);

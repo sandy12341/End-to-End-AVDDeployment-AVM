@@ -204,6 +204,8 @@ If the Generate Operational Summary definition must ingest a new `mainTemplate.j
 
 The `Generate Operational Summary` managed app uses `CreateUiDefinition` ARM API calls only as portal-preview evidence. It must not declare application-group assignments missing from that preview alone because the portal flow can miss inherited, paged, or permission-constrained RBAC data. Do not use `Microsoft.Resources/deploymentScripts` for this read-only discovery path in this environment: Azure Deployment Scripts requires backing storage access that uses storage account keys, and this subscription blocks key-based storage authentication by policy. Authoritative access discovery belongs in the Operational Summary collector runtime.
 
+The collector validates assigned AVD group principals through Microsoft Graph. Grant the collector managed identity approved Graph application permission `Group.Read.All` before treating group validation as complete. If Graph cannot be read, the generated report records `GROUP_PRINCIPAL_NOT_READABLE` and does not claim that the group is missing.
+
 After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
 
 ```powershell

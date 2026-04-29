@@ -22,6 +22,10 @@ public sealed class OperationalSummaryReportRendererTests
                 new OperationalSummaryFinding("FINDING_<script>", "High", "Access", "Observed <bad>", "Fix > now")
             },
             RoleAssignmentEvidence: Array.Empty<RoleAssignmentEvidence>(),
+            PrincipalValidationEvidence: new[]
+            {
+                new PrincipalValidationEvidence("group<script>", "Group", "Exists", "Name <unsafe>", "Message > unsafe")
+            },
             Overview: new OperationalSummaryOverview("NeedsAttention", "Summary <unsafe>", new Dictionary<string, int> { ["High"] = 1 }, new[] { "Fix <this>" }),
             PersonaViews: Array.Empty<OperationalPersonaView>(),
             DiscoveryMessages: Array.Empty<DiscoveryMessage>(),
@@ -31,6 +35,7 @@ public sealed class OperationalSummaryReportRendererTests
 
         Assert.Contains("&lt;unsafe&gt;", html);
         Assert.Contains("FINDING_&lt;script&gt;", html);
+        Assert.Contains("group&lt;script&gt;", html);
         Assert.DoesNotContain("Summary <unsafe>", html);
     }
 }

@@ -8,29 +8,33 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
     private readonly RoleAssignmentClassifier classifier;
     private readonly IOperationalSummaryReportRenderer renderer;
     private readonly IReportArtifactWriter artifactWriter;
+    private readonly IPrincipalValidator principalValidator;
 
     public OperationalSummaryCollector(
         IAvdDiscoveryClient discoveryClient,
         RoleAssignmentClassifier classifier,
         IOperationalSummaryReportRenderer renderer,
-        IReportArtifactWriter artifactWriter)
+        IReportArtifactWriter artifactWriter,
+        IPrincipalValidator principalValidator)
     {
         this.discoveryClient = discoveryClient;
         this.classifier = classifier;
         this.renderer = renderer;
         this.artifactWriter = artifactWriter;
+        this.principalValidator = principalValidator;
     }
 
     public async Task<OperationalSummaryReport> CollectAsync(OperationalSummaryRequest request, CancellationToken cancellationToken)
     {
         var snapshot = await discoveryClient.DiscoverAsync(request, cancellationToken);
         var accessResults = classifier.Classify(snapshot.ApplicationGroupResourceIds, snapshot.RoleAssignments, snapshot.WasAuthorized);
-        var findings = BuildFindings(accessResults, snapshot).ToArray();
+        var principalValidation = await principalValidator.ValidateAsync(snapshot.RoleAssignments, cancellationToken);
+        var findings = BuildFindings(accessResults, snapshot, principalValidation).ToArray();
         var discoveryMessages = snapshot.Errors
             .Select(error => new DiscoveryMessage("Warning", "ARM", error))
             .ToArray();
         var overview = BuildOverview(findings, snapshot.WasAuthorized);
-        var personaViews = BuildPersonaViews(findings, accessResults, snapshot).ToArray();
+        var personaViews = BuildPersonaViews(findings, accessResults, snapshot, principalValidation).ToArray();
         var runId = CreateRunId(request);
 
         var report = new OperationalSummaryReport(
@@ -47,6 +51,7 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
             DiscoveryConfidence: snapshot.WasAuthorized ? "Authoritative" : "NotAuthorized",
             Findings: findings,
             RoleAssignmentEvidence: snapshot.RoleAssignments,
+            PrincipalValidationEvidence: principalValidation,
             Overview: overview,
             PersonaViews: personaViews,
             DiscoveryMessages: discoveryMessages,
@@ -108,11 +113,14 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
     private static IEnumerable<OperationalPersonaView> BuildPersonaViews(
         IReadOnlyList<OperationalSummaryFinding> findings,
         IReadOnlyList<ApplicationGroupAccessResult> accessResults,
-        DiscoverySnapshot snapshot)
+        DiscoverySnapshot snapshot,
+        IReadOnlyList<PrincipalValidationEvidence> principalValidation)
     {
         var missingAccessCount = accessResults.Count(result => result.State == "Missing");
         var directAssignmentCount = accessResults.Sum(result => result.DirectAssignmentCount);
         var inheritedAssignmentCount = accessResults.Sum(result => result.InheritedAssignmentCount);
+        var missingGroupCount = principalValidation.Count(evidence => evidence.ValidationState == "NotFound");
+        var unreadableGroupCount = principalValidation.Count(evidence => evidence.ValidationState == "NotReadable");
 
         yield return new OperationalPersonaView(
             "SysAdmin",
@@ -137,12 +145,15 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
             {
                 $"Direct app group assignments detected: {directAssignmentCount}",
                 $"Inherited app group assignments detected: {inheritedAssignmentCount}",
-                $"Application groups missing confirmed assignments: {missingAccessCount}"
+                $"Application groups missing confirmed assignments: {missingAccessCount}",
+                $"Assigned groups not found: {missingGroupCount}",
+                $"Assigned groups not readable: {unreadableGroupCount}"
             },
             new[]
             {
                 "Validate group-based access for each application group.",
-                "Investigate not-authorized discovery before declaring access missing."
+                "Investigate not-authorized discovery before declaring access missing.",
+                "Review missing or unreadable group principals before closing access findings."
             },
             findings.Where(finding => finding.Category == "Access").Select(finding => finding.Code).ToArray());
 
@@ -152,7 +163,8 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
             new[]
             {
                 $"Application groups available for user access review: {snapshot.ApplicationGroupResourceIds.Count}",
-                $"Access evidence records collected: {snapshot.RoleAssignments.Count}"
+                $"Access evidence records collected: {snapshot.RoleAssignments.Count}",
+                $"Assigned groups validated: {principalValidation.Count(evidence => evidence.ValidationState == "Exists")}"
             },
             new[]
             {
@@ -164,7 +176,8 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
 
     private static IEnumerable<OperationalSummaryFinding> BuildFindings(
         IReadOnlyList<ApplicationGroupAccessResult> accessResults,
-        DiscoverySnapshot snapshot)
+        DiscoverySnapshot snapshot,
+        IReadOnlyList<PrincipalValidationEvidence> principalValidation)
     {
         if (!snapshot.WasAuthorized)
         {
@@ -190,6 +203,36 @@ public sealed class OperationalSummaryCollector : IOperationalSummaryCollector
                 "Assign users or groups to the affected application groups, preferably through group-based RBAC.",
                 "SecurityAdmin",
                 accessResults.Where(result => result.State == "Missing").Select(result => result.ApplicationGroupResourceId).ToArray());
+        }
+
+        var missingGroups = principalValidation
+            .Where(evidence => evidence.ValidationState == "NotFound")
+            .ToArray();
+        if (missingGroups.Length > 0)
+        {
+            yield return new OperationalSummaryFinding(
+                "GROUP_PRINCIPAL_NOT_FOUND",
+                "Medium",
+                "Access",
+                $"{missingGroups.Length} assigned group principal(s) could not be found in Microsoft Graph.",
+                "Review the affected application group role assignments and replace stale or deleted group principals.",
+                "SecurityAdmin",
+                missingGroups.Select(group => group.PrincipalId).ToArray());
+        }
+
+        var unreadableGroups = principalValidation
+            .Where(evidence => evidence.ValidationState == "NotReadable")
+            .ToArray();
+        if (unreadableGroups.Length > 0)
+        {
+            yield return new OperationalSummaryFinding(
+                "GROUP_PRINCIPAL_NOT_READABLE",
+                "Informational",
+                "Access",
+                $"{unreadableGroups.Length} assigned group principal(s) could not be validated because Microsoft Graph read access is unavailable.",
+                "Grant the collector approved Microsoft Graph group read permission, then rerun collection to validate assigned groups.",
+                "SecurityAdmin",
+                unreadableGroups.Select(group => group.PrincipalId).ToArray());
         }
     }
 }

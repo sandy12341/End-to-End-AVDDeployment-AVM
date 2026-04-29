@@ -10,6 +10,9 @@ param workloadName string = 'avd-ops-summary'
 @description('Report container name in the private report storage account.')
 param reportContainerName string = 'operational-summaries'
 
+@description('Virtual folder prefix for generated report artifacts.')
+param reportPathPrefix string = 'operational-summary'
+
 @description('Tags applied to collector resources.')
 param tags object = {
   Project: 'AVD-Landing-Zone'
@@ -171,6 +174,14 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
           name: 'ReportContainerName'
           value: reportContainer.name
         }
+        {
+          name: 'OPERATIONAL_SUMMARY_REPORT_CONTAINER_URI'
+          value: '${reportStorage.properties.primaryEndpoints.blob}${reportContainer.name}'
+        }
+        {
+          name: 'OPERATIONAL_SUMMARY_REPORT_PATH_PREFIX'
+          value: reportPathPrefix
+        }
       ]
     }
   }
@@ -213,3 +224,4 @@ output collectorIdentityResourceId string = collectorIdentity.id
 output reportStorageAccountName string = reportStorage.name
 output reportContainerName string = reportContainer.name
 output targetDiscoveryRoleGuidance string = 'Assign Reader plus roleAssignments/read-capable access, such as Reader with Microsoft.Authorization/roleAssignments/read or an approved custom role, at the target AVD resource group or subscription scope.'
+output graphGroupValidationGuidance string = 'Grant the collector managed identity approved Microsoft Graph application permission Group.Read.All to validate assigned group principals. Without it, reports mark group validation as NotReadable instead of NotFound.'

@@ -64,6 +64,17 @@ public sealed class HtmlOperationalSummaryReportRenderer : IOperationalSummaryRe
         }
         html.Append("</tbody></table></section>");
 
+        html.Append("<section><h2>Group Principal Validation</h2><table><thead><tr><th>Principal</th><th>Type</th><th>State</th><th>Display Name</th><th>Message</th></tr></thead><tbody>");
+        foreach (var principal in report.PrincipalValidationEvidence)
+        {
+            html.Append("<tr><td>").Append(E(principal.PrincipalId)).Append("</td>");
+            html.Append("<td>").Append(E(principal.PrincipalType)).Append("</td>");
+            html.Append("<td>").Append(E(principal.ValidationState)).Append("</td>");
+            html.Append("<td>").Append(E(principal.DisplayName ?? string.Empty)).Append("</td>");
+            html.Append("<td>").Append(E(principal.Message ?? string.Empty)).Append("</td></tr>");
+        }
+        html.Append("</tbody></table></section>");
+
         if (report.DiscoveryMessages.Count > 0)
         {
             html.Append("<section><h2>Discovery Messages</h2><table><thead><tr><th>Severity</th><th>Source</th><th>Message</th></tr></thead><tbody>");
