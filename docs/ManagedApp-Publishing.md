@@ -31,17 +31,19 @@ The live launch inventory in [README.md](c:/Users/raavisandeep/OneDrive%20-%20Mi
 
 ## Package URI Map
 
-Use one stable HTTPS URI per package artifact. The recommended path is the storage account static website endpoint, backed by a dedicated package storage account managed through Bicep.
+Use one immutable HTTPS URI per package artifact. The recommended path is the storage account static website endpoint, backed by a dedicated package storage account managed through Bicep.
+
+The publish script uploads packages with a short SHA-256 hash in the blob name, for example `app-summary-<hash>.zip`. This keeps package URLs durable for each version and forces `Microsoft.Solutions/applicationDefinitions` to ingest a fresh artifact when package content changes.
 
 | Entry point | Definition name | Local artifact | Placeholder URI |
 |---|---|---|---|
-| Deploy New Environment | `avd-new-environment-avm` | `infra/managedapp/dist/app-new.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-new.zip` |
-| Manage Existing AVD Deployment | `avd-manage-existing-avm` | `infra/managedapp/dist/app-existing.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-existing.zip` |
-| Launch Day-2 Operations | `avd-day2-operations-avm` | `infra/managedapp/dist/app-day2.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-day2.zip` |
-| Add Session Hosts | `avd-add-session-hosts-avm` | `infra/managedapp/dist/app-addhosts.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-addhosts.zip` |
-| Configure Scaling Plan | `avd-configure-scaling-avm` | `infra/managedapp/dist/app-scaling.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-scaling.zip` |
-| Align Monitoring Posture | `avd-align-monitoring-avm` | `infra/managedapp/dist/app-monitoring.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-monitoring.zip` |
-| Generate Operational Summary | `avd-operational-summary-avm` | `infra/managedapp/dist/app-summary.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-summary.zip` |
+| Deploy New Environment | `avd-new-environment-avm` | `infra/managedapp/dist/app-new.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-new-<hash>.zip` |
+| Manage Existing AVD Deployment | `avd-manage-existing-avm` | `infra/managedapp/dist/app-existing.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-existing-<hash>.zip` |
+| Launch Day-2 Operations | `avd-day2-operations-avm` | `infra/managedapp/dist/app-day2.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-day2-<hash>.zip` |
+| Add Session Hosts | `avd-add-session-hosts-avm` | `infra/managedapp/dist/app-addhosts.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-addhosts-<hash>.zip` |
+| Configure Scaling Plan | `avd-configure-scaling-avm` | `infra/managedapp/dist/app-scaling.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-scaling-<hash>.zip` |
+| Align Monitoring Posture | `avd-align-monitoring-avm` | `infra/managedapp/dist/app-monitoring.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-monitoring-<hash>.zip` |
+| Generate Operational Summary | `avd-operational-summary-avm` | `infra/managedapp/dist/app-summary.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-summary-<hash>.zip` |
 
 The storage account keeps `allowBlobPublicAccess = false`. Public package retrieval comes from the static website endpoint instead, while uploads continue to use Microsoft Entra authentication.
 
@@ -151,9 +153,9 @@ Because shared key access is disabled, uploads should use Microsoft Entra authen
 
 ## Step 2: Upload The Packages And Resolve Durable URIs
 
-The default path is to let the publish script provision or reconcile the package storage account through Bicep, upload the seven zip files with Entra-authenticated data-plane access, and then publish the managed application definitions using stable blob URLs.
+The default path is to let the publish script provision or reconcile the package storage account through Bicep, upload the seven zip files with Entra-authenticated data-plane access, and then publish the managed application definitions using content-addressed blob URLs.
 
-The stable package URL pattern is:
+The package URL pattern is:
 
 ```powershell
 $WebEndpoint = az storage account show \
@@ -162,7 +164,7 @@ $WebEndpoint = az storage account show \
   --query primaryEndpoints.web \
   -o tsv
 
-"$WebEndpoint$ContainerName/<package-name>.zip"
+"$WebEndpoint$ContainerName/<package-name>-<hash>.zip"
 ```
 
 ## Step 3: Preview The Definition Deployment
@@ -195,6 +197,8 @@ pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
 This publishes seven managed application definitions through [infra/managedapp/deployDefinitions.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/managedapp/deployDefinitions.bicep).
 
 If you need to publish from pre-existing immutable URLs outside Azure Blob Storage, pass the seven explicit `*PackageFileUri` parameters instead.
+
+If the Generate Operational Summary definition must ingest a new `mainTemplate.json` shape, add `-RecreateSummaryDefinition`. Azure can report a successful update to `packageFileUri` while retaining the previously ingested `ApplicationResourceTemplate`; recreating only `avd-operational-summary-avm` forces a fresh package ingestion without changing the other managed app definitions.
 
 ## Step 5: Verify The Published Definitions
 

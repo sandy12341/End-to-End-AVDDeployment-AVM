@@ -54,6 +54,7 @@ param(
     [string]$SummaryDefinitionName = 'avd-operational-summary-avm',
     [string]$RoleDefinitionId = '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
     [string]$LockLevel = 'ReadOnly',
+    [switch]$RecreateSummaryDefinition,
     [switch]$WhatIf
 )
 
@@ -156,12 +157,18 @@ function Resolve-PackageUris {
             throw ("Package artifact not found: {0}" -f $packagePath)
         }
 
+        $packageHash = (Get-FileHash -Path $packagePath -Algorithm SHA256).Hash.ToLowerInvariant().Substring(0, 12)
+        $packageBaseName = [System.IO.Path]::GetFileNameWithoutExtension($packageDefinition.FileName)
+        $packageExtension = [System.IO.Path]::GetExtension($packageDefinition.FileName)
+        $versionedPackageName = "{0}-{1}{2}" -f $packageBaseName, $packageHash, $packageExtension
+        $blobName = "{0}/{1}" -f $PackageContainerName, $versionedPackageName
+
         if (-not $WhatIf) {
             Invoke-AzCommand -Arguments @(
                 'storage', 'blob', 'upload',
                 '--account-name', $PackageStorageAccountName,
                 '--container-name', '$web',
-                '--name', ("{0}/{1}" -f $PackageContainerName, $packageDefinition.FileName),
+                '--name', $blobName,
                 '--file', $packagePath,
                 '--overwrite', 'true',
                 '--auth-mode', 'login',
@@ -169,7 +176,7 @@ function Resolve-PackageUris {
             )
         }
 
-        $resolvedUris[$packageDefinition.UriParameter] = "{0}{1}/{2}" -f $websiteEndpoint, $PackageContainerName, $packageDefinition.FileName
+        $resolvedUris[$packageDefinition.UriParameter] = "{0}{1}" -f $websiteEndpoint, $blobName
     }
 
     return $resolvedUris
@@ -178,6 +185,34 @@ function Resolve-PackageUris {
 $packageUris = Resolve-PackageUris
 
 Invoke-AzCommand -Arguments @('group', 'create', '--name', $ResourceGroupName, '--location', $Location, '--output', 'none')
+
+if ($RecreateSummaryDefinition) {
+    $summaryDefinitionId = "/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Solutions/applicationDefinitions/{2}" -f ((Invoke-AzCommandCapture -Arguments @('account', 'show', '--query', 'id', '-o', 'tsv')) | Out-String).Trim(), $ResourceGroupName, $SummaryDefinitionName
+    $summaryDefinitionExists = $false
+
+    & az resource show --ids $summaryDefinitionId --api-version 2021-07-01 --output none 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $summaryDefinitionExists = $true
+    }
+    elseif ($LASTEXITCODE -ne 3) {
+        throw ("Azure CLI command failed while checking summary definition: az resource show --ids {0}" -f $summaryDefinitionId)
+    }
+
+    if ($summaryDefinitionExists) {
+        if ($WhatIf) {
+            Write-Host ("Would recreate summary managed application definition: {0}" -f $summaryDefinitionId)
+        }
+        else {
+            Write-Host ("Deleting summary managed application definition before republish: {0}" -f $summaryDefinitionId)
+            Invoke-AzCommand -Arguments @(
+                'resource', 'delete',
+                '--ids', $summaryDefinitionId,
+                '--api-version', '2021-07-01',
+                '--output', 'none'
+            )
+        }
+    }
+}
 
 $deploymentName = 'managedapp-definitions'
 $parametersPayload = @{
