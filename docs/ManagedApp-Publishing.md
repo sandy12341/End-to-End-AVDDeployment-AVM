@@ -233,6 +233,8 @@ Keep the target-scope permissions narrow:
 
 Do not assign `Owner`, `Contributor`, or `User Access Administrator` to the collector identity. If future remediation is added, use a separate remediation identity behind approval rather than expanding `avd-rbac-discovery`.
 
+When `enableManagedAppEventGridTrigger` is `true`, the collector deployment creates an Event Grid system topic for subscription resource events and a webhook event subscription filtered to `Microsoft.Solutions/applications/write`. A successful managed app create/update event posts to the `GenerateOperationalSummaryFromManagedAppEvent` Function route, which reads the managed app parameters, reconstructs the selected host pool/application group/workspace context, and writes the JSON/HTML report artifacts. Keep this disabled for initial manual validation, then enable it after the Function code is deployed and the collector identity has target-scope read access plus report storage writes.
+
 After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
 
 ```powershell

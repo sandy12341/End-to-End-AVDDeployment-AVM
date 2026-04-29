@@ -17,6 +17,7 @@ builder.Services.AddSingleton<IOperationalSummaryReportRenderer, HtmlOperational
 builder.Services.AddSingleton<IReportArtifactWriter, BlobReportArtifactWriter>();
 builder.Services.AddSingleton<IPrincipalValidator, GraphGroupPrincipalValidator>();
 builder.Services.AddSingleton<IAvdDiscoveryClient, ArmAvdDiscoveryClient>();
+builder.Services.AddSingleton<IManagedApplicationSummaryRequestResolver, ArmManagedApplicationSummaryRequestResolver>();
 builder.Services.AddSingleton<IOperationalSummaryCollector, OperationalSummaryCollector>();
 
 builder.Build().Run();

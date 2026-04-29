@@ -37,11 +37,6 @@ public sealed class GenerateOperationalSummaryFunction
             return new BadRequestObjectResult(new { error = "hostPoolResourceId is required." });
         }
 
-        if (summaryRequest.ApplicationGroupResourceIds.Count == 0)
-        {
-            return new BadRequestObjectResult(new { error = "applicationGroupResourceIds must contain at least one application group resource ID." });
-        }
-
         logger.LogInformation(
             "Generating operational summary for host pool {HostPoolResourceId} with {ApplicationGroupCount} application group(s).",
             summaryRequest.HostPoolResourceId,

@@ -22,6 +22,15 @@ param existingCollectorIdentityClientId string = ''
 @description('Principal ID of the existing collector managed identity. Required when existingCollectorIdentityResourceId is provided so storage role assignments can be created.')
 param existingCollectorIdentityPrincipalId string = ''
 
+@description('Enable an Event Grid webhook subscription that invokes the collector when Microsoft.Solutions/applications write events occur in this subscription.')
+param enableManagedAppEventGridTrigger bool = false
+
+@description('Event Grid system topic name used for managed application resource events when Event Grid trigger is enabled.')
+param managedAppEventGridSystemTopicName string = ''
+
+@description('Event Grid subscription name used for managed application resource events when Event Grid trigger is enabled.')
+param managedAppEventSubscriptionName string = ''
+
 @description('Tags applied to collector resources.')
 param tags object = {
   Project: 'AVD-Landing-Zone'
@@ -35,6 +44,10 @@ var workspaceName = 'law-${workloadName}-${suffix}'
 var appInsightsName = 'appi-${workloadName}-${suffix}'
 var planName = 'asp-${workloadName}-${suffix}'
 var functionAppName = 'func-${workloadName}-${suffix}'
+var managedAppEventWebhookFunctionResourceId = resourceId('Microsoft.Web/sites/functions', functionAppName, 'GenerateOperationalSummaryFromManagedAppEvent')
+var managedAppEventWebhookFunctionApiVersion = '2024-04-01'
+var resolvedManagedAppEventGridSystemTopicName = empty(managedAppEventGridSystemTopicName) ? 'egst-${workloadName}-${suffix}' : managedAppEventGridSystemTopicName
+var resolvedManagedAppEventSubscriptionName = empty(managedAppEventSubscriptionName) ? 'evs-${workloadName}-${suffix}' : managedAppEventSubscriptionName
 var useExistingCollectorIdentity = !empty(existingCollectorIdentityResourceId)
 var collectorIdentityResourceId = useExistingCollectorIdentity ? existingCollectorIdentityResourceId : collectorIdentity.id
 var collectorIdentityClientId = useExistingCollectorIdentity ? existingCollectorIdentityClientId : collectorIdentity!.properties.clientId
@@ -231,6 +244,51 @@ resource storageTableDataContributorAssignment 'Microsoft.Authorization/roleAssi
   }
 }
 
+resource managedAppSystemTopic 'Microsoft.EventGrid/systemTopics@2025-02-15' = if (enableManagedAppEventGridTrigger) {
+  name: resolvedManagedAppEventGridSystemTopicName
+  location: 'global'
+  tags: tags
+  properties: {
+    source: subscription().id
+    topicType: 'Microsoft.Resources.Subscriptions'
+  }
+}
+
+resource managedAppEventSubscription 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2025-02-15' = if (enableManagedAppEventGridTrigger) {
+  parent: managedAppSystemTopic
+  name: resolvedManagedAppEventSubscriptionName
+  properties: {
+    destination: {
+      endpointType: 'WebHook'
+      properties: {
+        endpointUrl: 'https://${functionApp.properties.defaultHostName}/api/operational-summary/managed-app-events?code=${listKeys(managedAppEventWebhookFunctionResourceId, managedAppEventWebhookFunctionApiVersion).default}'
+        maxEventsPerBatch: 1
+        preferredBatchSizeInKilobytes: 64
+      }
+    }
+    eventDeliverySchema: 'EventGridSchema'
+    filter: {
+      includedEventTypes: [
+        'Microsoft.Resources.ResourceWriteSuccess'
+      ]
+      subjectBeginsWith: '${subscription().id}/resourceGroups/'
+      advancedFilters: [
+        {
+          operatorType: 'StringIn'
+          key: 'data.operationName'
+          values: [
+            'Microsoft.Solutions/applications/write'
+          ]
+        }
+      ]
+    }
+    retryPolicy: {
+      maxDeliveryAttempts: 12
+      eventTimeToLiveInMinutes: 1440
+    }
+  }
+}
+
 output functionAppName string = functionApp.name
 output functionAppResourceId string = functionApp.id
 output collectorIdentityName string = collectorIdentityDisplayName
@@ -239,5 +297,7 @@ output collectorIdentityPrincipalId string = collectorIdentityPrincipalId
 output collectorIdentityResourceId string = collectorIdentityResourceId
 output reportStorageAccountName string = reportStorage.name
 output reportContainerName string = reportContainer.name
+output managedAppEventGridSystemTopicId string = enableManagedAppEventGridTrigger ? managedAppSystemTopic!.id : ''
+output managedAppEventSubscriptionId string = enableManagedAppEventGridTrigger ? managedAppEventSubscription!.id : ''
 output targetDiscoveryRoleGuidance string = 'Assign Reader plus roleAssignments/read-capable access, such as Reader with Microsoft.Authorization/roleAssignments/read or an approved custom role, at the target AVD resource group or subscription scope.'
 output graphGroupValidationGuidance string = 'Grant the collector managed identity approved Microsoft Graph application permission Group.Read.All to validate assigned group principals. Without it, reports mark group validation as NotReadable instead of NotFound.'
