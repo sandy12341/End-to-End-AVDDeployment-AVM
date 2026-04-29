@@ -457,11 +457,13 @@ var operationalSummaryPreferredAppGroupType = empty(brownfieldDetectedPreferredA
 var operationalSummaryAuthenticationType = empty(brownfieldDetectedAuthenticationType) ? 'Unknown' : brownfieldDetectedAuthenticationType
 var operationalSummaryFslogixAssessmentProvided = !empty(brownfieldDetectedFslogixStorageAccountResourceId)
 var brownfieldDetectedScopedApplicationGroupAssignments = filter(brownfieldDetectedSubscriptionApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedApplicationGroupIds, assignment.scope))
+var shouldClassifyAssignmentsByPreferredDesktop = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0 && length(brownfieldDetectedRelatedDesktopApplicationGroupIds) == 0 && length(brownfieldDetectedRelatedRemoteAppApplicationGroupIds) == 0 && toLower(operationalSummaryPreferredAppGroupType) == 'desktop'
+var shouldClassifyAssignmentsByPreferredRemoteApp = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0 && length(brownfieldDetectedRelatedDesktopApplicationGroupIds) == 0 && length(brownfieldDetectedRelatedRemoteAppApplicationGroupIds) == 0 && toLower(operationalSummaryPreferredAppGroupType) == 'remoteapp'
 var effectiveBrownfieldDetectedDesktopAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
-  ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedDesktopApplicationGroupIds, assignment.scope)))
+  ? (shouldClassifyAssignmentsByPreferredDesktop ? length(brownfieldDetectedScopedApplicationGroupAssignments) : length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedDesktopApplicationGroupIds, assignment.scope))))
   : brownfieldDetectedDesktopAssignmentCount
 var effectiveBrownfieldDetectedRemoteAppAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
-  ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedRemoteAppApplicationGroupIds, assignment.scope)))
+  ? (shouldClassifyAssignmentsByPreferredRemoteApp ? length(brownfieldDetectedScopedApplicationGroupAssignments) : length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => contains(brownfieldDetectedRelatedRemoteAppApplicationGroupIds, assignment.scope))))
   : brownfieldDetectedRemoteAppAssignmentCount
 var effectiveBrownfieldDetectedDirectUserAssignmentCount = length(brownfieldDetectedScopedApplicationGroupAssignments) > 0
   ? length(filter(brownfieldDetectedScopedApplicationGroupAssignments, (assignment) => assignment.principalType == 'User'))
