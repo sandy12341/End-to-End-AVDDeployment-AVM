@@ -512,15 +512,15 @@ var operationalSummaryFindings = concat(
   ] : [],
   isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
     {
-      code: 'APPLICATION_GROUP_ASSIGNMENTS_MISSING'
-      severity: 'High'
+      code: 'APPLICATION_GROUP_ASSIGNMENTS_NOT_CONFIRMED'
+      severity: 'Informational'
       category: 'Access'
-      bestPractice: 'Grant access through explicit application group assignments so published resources are reachable through governed identities.'
-      observedState: 'No role assignments were detected across the related application groups in the selected host pool resource group.'
-      impact: 'Users may be unable to launch published resources, or access may be managed outside the intended scope.'
-      recommendedAction: 'Review access assignments and run UpdateAccessAssignments if the application groups should be managed by this solution.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'UpdateAccessAssignments'
+      bestPractice: 'Validate application group access with the authoritative collector before declaring missing access assignments.'
+      observedState: 'The managed app portal preview did not confirm role assignments across the related application groups. This preview can miss inherited, paged, or scope-specific RBAC evidence.'
+      impact: 'Portal preview evidence is incomplete; use the collector-backed operational summary before treating access as missing.'
+      recommendedAction: 'Review the collector-backed summary report or rerun operational summary collection with the managed identity that has target-scope role assignment read access.'
+      canBeMitigatedBySolutionAction: false
+      recommendedActionName: 'ReviewCollectorReport'
     }
   ] : [],
   isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && brownfieldDetectedDirectUserAssignmentCount > 0 ? [
@@ -667,7 +667,7 @@ var operationalSummaryObject = isDay2GenerateOperationalSummary
         accessAssignmentsCoverageEvaluated: brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
         accessAssignmentsState: !brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
           ? 'NotEvaluatedInPortal'
-          : ((brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'MissingOrExternal')
+          : ((brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'NotConfirmedByPortalPreview')
       }
       fslogixPosture: {
         assessmentState: operationalSummaryFslogixAssessmentProvided ? 'Assessed' : 'NotAssessed'
