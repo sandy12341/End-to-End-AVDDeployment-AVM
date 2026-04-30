@@ -47,7 +47,6 @@ jobs:
             'infra/managedapp/dist/app-addhosts.zip',
             'infra/managedapp/dist/app-scaling.zip',
             'infra/managedapp/dist/app-monitoring.zip',
-            'infra/managedapp/dist/app-summary.zip'
           )
 
           foreach ($requiredFile in $requiredFiles) {
@@ -66,7 +65,6 @@ jobs:
             'app-addhosts.zip',
             'app-scaling.zip',
             'app-monitoring.zip',
-            'app-summary.zip'
           )
 
           foreach ($packageName in $packageNames) {

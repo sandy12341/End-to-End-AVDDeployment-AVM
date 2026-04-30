@@ -85,17 +85,6 @@ param monitoringDefinitionDescription string = 'Azure Virtual Desktop AVM manage
 @description('URI of the managed application package zip file for the dedicated monitoring-alignment entrypoint')
 param monitoringPackageFileUri string
 
-@description('Name of the dedicated operational-summary managed application definition')
-param summaryDefinitionName string = 'avd-operational-summary-avm'
-
-@description('Display name shown in the Azure service catalog for the dedicated operational-summary entrypoint')
-param summaryDefinitionDisplayName string = 'Generate Operational Summary - Azure Virtual Desktop + ALZ (AVM)'
-
-@description('Description shown in the Azure service catalog for the dedicated operational-summary entrypoint')
-param summaryDefinitionDescription string = 'Azure Virtual Desktop AVM managed application entrypoint for a read-only operational summary against an existing host pool, with optional FSLogix posture enrichment.'
-
-@description('URI of the managed application package zip file for the dedicated operational-summary entrypoint')
-param summaryPackageFileUri string
 
 module newEnvironmentDefinition './deployDefinition.bicep' = {
   name: 'newEnvironmentDefinition'
@@ -181,19 +170,6 @@ module monitoringDefinition './deployDefinition.bicep' = {
   }
 }
 
-module summaryDefinition './deployDefinition.bicep' = {
-  name: 'summaryDefinition'
-  params: {
-    location: location
-    managedApplicationDefinitionName: summaryDefinitionName
-    definitionDisplayName: summaryDefinitionDisplayName
-    definitionDescription: summaryDefinitionDescription
-    packageFileUri: summaryPackageFileUri
-    principalId: principalId
-    roleDefinitionId: roleDefinitionId
-    lockLevel: lockLevel
-  }
-}
 
 output newEnvironmentDefinitionId string = newEnvironmentDefinition.outputs.managedApplicationDefinitionId
 output existingEnvironmentDefinitionId string = existingEnvironmentDefinition.outputs.managedApplicationDefinitionId
@@ -201,4 +177,3 @@ output day2DefinitionId string = day2Definition.outputs.managedApplicationDefini
 output addSessionHostsDefinitionId string = addSessionHostsDefinition.outputs.managedApplicationDefinitionId
 output scalingDefinitionId string = scalingDefinition.outputs.managedApplicationDefinitionId
 output monitoringDefinitionId string = monitoringDefinition.outputs.managedApplicationDefinitionId
-output summaryDefinitionId string = summaryDefinition.outputs.managedApplicationDefinitionId

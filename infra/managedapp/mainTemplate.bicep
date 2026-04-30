@@ -22,7 +22,7 @@ param environment string = 'dev'
 param expandOperation string = ''
 
 @description('Selected brownfield day-2 action.')
-@allowed(['', 'ConfigureScalingPlan', 'AlignMonitoringPosture', 'UpdateAccessAssignments', 'ReconcileFsLogixPrivateConnectivity', 'GenerateOperationalSummary'])
+@allowed(['', 'ConfigureScalingPlan', 'AlignMonitoringPosture', 'UpdateAccessAssignments', 'ReconcileFsLogixPrivateConnectivity'])
 param day2Operation string = ''
 
 @description('Existing workspaces related to the selected host pool.')
@@ -127,10 +127,10 @@ param brownfieldDetectedDirectUserAssignmentCount int = 0
 @description('Detected group-based assignment count across related application groups.')
 param brownfieldDetectedGroupAssignmentCount int = 0
 
-@description('Detected FSLogix storage account name provided for operational summary assessment.')
+@description('Detected FSLogix storage account name provided for brownfield FSLogix network posture assessment.')
 param brownfieldDetectedFslogixStorageAccountName string = ''
 
-@description('Detected FSLogix storage account resource ID provided for operational summary assessment.')
+@description('Detected FSLogix storage account resource ID provided for brownfield FSLogix network posture assessment.')
 param brownfieldDetectedFslogixStorageAccountResourceId string = ''
 
 @description('Detected public network access state for the FSLogix storage account under assessment.')
@@ -556,8 +556,3 @@ output scalingPlanId string = sharedSolution.outputs.scalingPlanId
 output brownfieldOperationSummary string = sharedSolution.outputs.brownfieldOperationSummary
 output effectiveAvdMode string = sharedSolution.outputs.effectiveAvdMode
 output avdRolesAssigned bool = sharedSolution.outputs.avdRolesAssigned
-output operationalSummary object = sharedSolution.outputs.operationalSummary
-output operationalSummaryRbacDiscovery object = sharedSolution.outputs.operationalSummaryRbacDiscovery
-output operationalGapRegister array = sharedSolution.outputs.operationalGapRegister
-output operationalSummaryHtml string = sharedSolution.outputs.operationalSummaryHtml
-output operationalSummaryHtmlDataUri string = sharedSolution.outputs.operationalSummaryHtmlDataUri

@@ -24,7 +24,7 @@ This lane is now explicitly the internal validation path. The public customer de
 
 Current entrypoint model:
 - Internal validation lane: raw-template deployment button backed by `infra/createUiDefinition.validation.v2.json`
-- Preferred managed-app operator definitions: deploy new environment, add session hosts, configure scaling plan, align monitoring posture, and generate operational summary
+- Preferred managed-app operator definitions: deploy new environment, add session hosts, configure scaling plan, and align monitoring posture
 - Retained compatibility wrappers: manage existing AVD deployment and launch day-2 operations
 
 ## Recommended Branch
@@ -67,7 +67,6 @@ Recommended definition settings for the AVM lane:
 - `avd-add-session-hosts-avm`
 - `avd-configure-scaling-avm`
 - `avd-align-monitoring-avm`
-- `avd-operational-summary-avm`
 - `avd-manage-existing-avm`
 - `avd-day2-operations-avm`
 - Package URIs: separate from the stable lane and versioned independently
@@ -81,7 +80,6 @@ Recommended definition settings for the AVM lane:
 | Add Session Hosts | Managed app definition | `infra/managedapp/dist/app-addhosts.zip` | brownfield host-pool expansion | Package built and definition published; portal validation pending | portal launch, stepper review, one brownfield host-add validation |
 | Configure Scaling Plan | Managed app definition | `infra/managedapp/dist/app-scaling.zip` | pooled host-pool scaling alignment | Package built and definition published; portal validation pending | portal launch, stepper review, one pooled scaling-plan validation |
 | Align Monitoring Posture | Managed app definition | `infra/managedapp/dist/app-monitoring.zip` | brownfield control-plane and guest-monitoring alignment | Package built and definition published; portal validation pending | portal launch, stepper review, one monitoring-alignment validation |
-| Generate Operational Summary | Managed app definition | `infra/managedapp/dist/app-summary.zip` | read-only brownfield operational posture review | Package built and definition published; portal validation pending | portal launch, stepper review, one summary validation |
 | Manage Existing AVD Deployment | Managed app definition | `infra/managedapp/dist/app-existing.zip` | broad brownfield wrapper retained for compatibility | Package built and definition published; compatibility validation pending | portal launch, confirm legacy wrapper is still intentionally available |
 | Launch Day-2 Operations | Managed app definition | `infra/managedapp/dist/app-day2.zip` | broad day-2 wrapper retained for compatibility | Package built and definition published; compatibility validation pending | portal launch, confirm legacy wrapper is still intentionally available |
 
@@ -91,10 +89,10 @@ Recommended definition settings for the AVM lane:
 - `infra/managedapp/createUiDefinition.day2.json` parses as valid JSON
 - `infra/managedapp/createUiDefinition.new.json` created as the dedicated greenfield wrapper
 - `pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1 -SkipDirectTemplate` succeeds
-- `infra/managedapp/dist/app-new.zip`, `infra/managedapp/dist/app-existing.zip`, `infra/managedapp/dist/app-day2.zip`, `infra/managedapp/dist/app-addhosts.zip`, `infra/managedapp/dist/app-scaling.zip`, `infra/managedapp/dist/app-monitoring.zip`, and `infra/managedapp/dist/app-summary.zip` are emitted
+- `infra/managedapp/dist/app-new.zip`, `infra/managedapp/dist/app-existing.zip`, `infra/managedapp/dist/app-day2.zip`, `infra/managedapp/dist/app-addhosts.zip`, `infra/managedapp/dist/app-scaling.zip`, and `infra/managedapp/dist/app-monitoring.zip` are emitted
 - `infra/managedapp/deployDefinitions.bicep` compiles successfully through the artifact build
 - Azure Blob package hosting is used for publication instead of the earlier GitHub release flow
-- Managed application definitions `avd-new-environment-avm`, `avd-add-session-hosts-avm`, `avd-configure-scaling-avm`, `avd-align-monitoring-avm`, `avd-operational-summary-avm`, `avd-manage-existing-avm`, and `avd-day2-operations-avm` are published in `rg-avd-managedapp-def-avm`
+- Managed application definitions `avd-new-environment-avm`, `avd-add-session-hosts-avm`, `avd-configure-scaling-avm`, `avd-align-monitoring-avm`, `avd-manage-existing-avm`, and `avd-day2-operations-avm` are published in `rg-avd-managedapp-def-avm`
 
 ## Validation Resource Groups
 

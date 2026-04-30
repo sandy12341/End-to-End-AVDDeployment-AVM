@@ -27,9 +27,6 @@ param(
     [Parameter(Mandatory, ParameterSetName = 'ExplicitUris')]
     [string]$MonitoringPackageFileUri,
 
-    [Parameter(Mandatory, ParameterSetName = 'ExplicitUris')]
-    [string]$SummaryPackageFileUri,
-
     [Parameter(Mandatory, ParameterSetName = 'PackageStorage')]
     [string]$PackageStorageAccountName,
 
@@ -51,10 +48,8 @@ param(
     [string]$AddSessionHostsDefinitionName = 'avd-add-session-hosts-avm',
     [string]$ScalingDefinitionName = 'avd-configure-scaling-avm',
     [string]$MonitoringDefinitionName = 'avd-align-monitoring-avm',
-    [string]$SummaryDefinitionName = 'avd-operational-summary-avm',
     [string]$RoleDefinitionId = '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
     [string]$LockLevel = 'ReadOnly',
-    [switch]$RecreateSummaryDefinition,
     [switch]$WhatIf
 )
 
@@ -72,7 +67,6 @@ $packageDefinitions = @(
     @{ UriParameter = 'addSessionHostsPackageFileUri'; FileName = 'app-addhosts.zip' }
     @{ UriParameter = 'scalingPackageFileUri'; FileName = 'app-scaling.zip' }
     @{ UriParameter = 'monitoringPackageFileUri'; FileName = 'app-monitoring.zip' }
-    @{ UriParameter = 'summaryPackageFileUri'; FileName = 'app-summary.zip' }
 )
 
 function Invoke-AzCommand {
@@ -111,8 +105,6 @@ function Resolve-PackageUris {
         $resolvedUris.addSessionHostsPackageFileUri = $AddSessionHostsPackageFileUri
         $resolvedUris.scalingPackageFileUri = $ScalingPackageFileUri
         $resolvedUris.monitoringPackageFileUri = $MonitoringPackageFileUri
-        $resolvedUris.summaryPackageFileUri = $SummaryPackageFileUri
-
         return $resolvedUris
     }
 
@@ -186,34 +178,6 @@ $packageUris = Resolve-PackageUris
 
 Invoke-AzCommand -Arguments @('group', 'create', '--name', $ResourceGroupName, '--location', $Location, '--output', 'none')
 
-if ($RecreateSummaryDefinition) {
-    $summaryDefinitionId = "/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Solutions/applicationDefinitions/{2}" -f ((Invoke-AzCommandCapture -Arguments @('account', 'show', '--query', 'id', '-o', 'tsv')) | Out-String).Trim(), $ResourceGroupName, $SummaryDefinitionName
-    $summaryDefinitionExists = $false
-
-    & az resource show --ids $summaryDefinitionId --api-version 2021-07-01 --output none 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        $summaryDefinitionExists = $true
-    }
-    elseif ($LASTEXITCODE -ne 3) {
-        throw ("Azure CLI command failed while checking summary definition: az resource show --ids {0}" -f $summaryDefinitionId)
-    }
-
-    if ($summaryDefinitionExists) {
-        if ($WhatIf) {
-            Write-Host ("Would recreate summary managed application definition: {0}" -f $summaryDefinitionId)
-        }
-        else {
-            Write-Host ("Deleting summary managed application definition before republish: {0}" -f $summaryDefinitionId)
-            Invoke-AzCommand -Arguments @(
-                'resource', 'delete',
-                '--ids', $summaryDefinitionId,
-                '--api-version', '2021-07-01',
-                '--output', 'none'
-            )
-        }
-    }
-}
-
 $deploymentName = 'managedapp-definitions'
 $parametersPayload = @{
     '$schema' = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
@@ -235,8 +199,6 @@ $parametersPayload = @{
         scalingPackageFileUri = @{ value = $packageUris.scalingPackageFileUri }
         monitoringDefinitionName = @{ value = $MonitoringDefinitionName }
         monitoringPackageFileUri = @{ value = $packageUris.monitoringPackageFileUri }
-        summaryDefinitionName = @{ value = $SummaryDefinitionName }
-        summaryPackageFileUri = @{ value = $packageUris.summaryPackageFileUri }
     }
 }
 

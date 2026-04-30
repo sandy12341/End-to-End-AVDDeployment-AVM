@@ -25,7 +25,6 @@ obj/
 /infra/solution/avdDeploymentCore.json
 /infra/managedapp/mainTemplate.json
 /infra/managedapp/deployDefinition.json
-/infra/operational-summary/main.json
 
 # Local planning artifacts
 /.azure/

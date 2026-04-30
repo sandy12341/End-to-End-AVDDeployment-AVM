@@ -20,7 +20,7 @@ param environment string = 'dev'
 param expandOperation string = ''
 
 @description('Selected brownfield day-2 action.')
-@allowed(['', 'ConfigureScalingPlan', 'AlignMonitoringPosture', 'UpdateAccessAssignments', 'ReconcileFsLogixPrivateConnectivity', 'GenerateOperationalSummary'])
+@allowed(['', 'ConfigureScalingPlan', 'AlignMonitoringPosture', 'UpdateAccessAssignments', 'ReconcileFsLogixPrivateConnectivity'])
 param day2Operation string = ''
 
 @description('Number of session host VMs')
@@ -205,10 +205,10 @@ param brownfieldDetectedDirectUserAssignmentCount int = 0
 @description('Detected group-based assignment count across related application groups.')
 param brownfieldDetectedGroupAssignmentCount int = 0
 
-@description('Detected FSLogix storage account name provided for operational summary assessment.')
+@description('Detected FSLogix storage account name provided for brownfield FSLogix network posture assessment.')
 param brownfieldDetectedFslogixStorageAccountName string = ''
 
-@description('Detected FSLogix storage account resource ID provided for operational summary assessment.')
+@description('Detected FSLogix storage account resource ID provided for brownfield FSLogix network posture assessment.')
 param brownfieldDetectedFslogixStorageAccountResourceId string = ''
 
 @description('Detected public network access state for the FSLogix storage account under assessment.')
@@ -361,7 +361,6 @@ var isDay2ScalingPlan = deploymentScenario == 'Day2Operations' && day2Operation 
 var isDay2AlignMonitoring = deploymentScenario == 'Day2Operations' && day2Operation == 'AlignMonitoringPosture'
 var isDay2UpdateAccessAssignments = deploymentScenario == 'Day2Operations' && day2Operation == 'UpdateAccessAssignments'
 var isDay2ReconcileFsLogixPrivateConnectivity = deploymentScenario == 'Day2Operations' && day2Operation == 'ReconcileFsLogixPrivateConnectivity'
-var isDay2GenerateOperationalSummary = deploymentScenario == 'Day2Operations' && day2Operation == 'GenerateOperationalSummary'
 var isBrownfieldMonitoringAlignment = isExpandAlignMonitoring || isDay2AlignMonitoring
 var isBrownfieldSessionHostReplacement = isExpandAddSessionHosts || isExpandVmBaselineRemediation
 var isNewDeployment = deploymentScenario == 'NewDeployment'
@@ -401,333 +400,6 @@ var tags = {
   Project: 'AVD-Landing-Zone'
   DeployedBy: 'Bicep'
 }
-var operationalSummaryLoadBalancerType = empty(brownfieldDetectedLoadBalancerType) ? 'Unknown' : brownfieldDetectedLoadBalancerType
-var operationalSummaryPreferredAppGroupType = empty(brownfieldDetectedPreferredAppGroupType) ? 'Unknown' : brownfieldDetectedPreferredAppGroupType
-var operationalSummaryAuthenticationType = empty(brownfieldDetectedAuthenticationType) ? 'Unknown' : brownfieldDetectedAuthenticationType
-var operationalSummaryFslogixAssessmentProvided = !empty(brownfieldDetectedFslogixStorageAccountResourceId)
-var operationalSummaryFindings = concat(
-  isDay2GenerateOperationalSummary && length(brownfieldDetectedHostPoolDiagnosticSettingNames) == 0 ? [
-    {
-      code: 'HOSTPOOL_DIAGNOSTICS_MISSING'
-      severity: 'High'
-      category: 'Monitoring'
-      bestPractice: 'Enable diagnostic settings for the host pool and related AVD control-plane resources.'
-      observedState: 'No host pool diagnostic settings were detected for the selected brownfield host pool.'
-      impact: 'Control-plane troubleshooting, auditing, and change correlation are reduced.'
-      recommendedAction: 'Run AlignMonitoringPosture to enable control-plane diagnostics.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'AlignMonitoringPosture'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && effectiveHostPoolType == 'Pooled' && length(brownfieldDetectedScalingPlanNames) == 0 ? [
-    {
-      code: 'SCALING_PLAN_MISSING'
-      severity: 'Medium'
-      category: 'Resilience'
-      bestPractice: 'Use a scaling plan for pooled host pools to control cost and operational readiness.'
-      observedState: 'No scaling plan attachment was detected for the selected pooled host pool.'
-      impact: 'Session host capacity and cost posture may drift because start/stop behavior is unmanaged.'
-      recommendedAction: 'Run ConfigureScalingPlan to create or attach a scaling plan.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'ConfigureScalingPlan'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && length(existingWorkspaceNames) == 0 ? [
-    {
-      code: 'WORKSPACE_LINK_MISSING'
-      severity: 'High'
-      category: 'Governance'
-      bestPractice: 'Ensure each published application group is linked to a workspace so resources are consumable and discoverable.'
-      observedState: 'No related workspaces were detected for the selected host pool.'
-      impact: 'Users may not see the intended desktop or RemoteApp publications, and operator intent is unclear.'
-      recommendedAction: 'Review workspace linkage for the host pool application groups.'
-      canBeMitigatedBySolutionAction: false
-      recommendedActionName: 'ManualFollowUp'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && length(relatedApplicationGroupNames) == 0 ? [
-    {
-      code: 'APPLICATION_GROUPS_MISSING'
-      severity: 'High'
-      category: 'Governance'
-      bestPractice: 'Maintain application groups for published desktops or RemoteApps and keep them linked to the target host pool.'
-      observedState: 'No related application groups were detected for the selected host pool.'
-      impact: 'The host pool may not expose user-facing resources, or the environment may have drifted from the intended design.'
-      recommendedAction: 'Review application group linkage and publication design for the selected host pool.'
-      canBeMitigatedBySolutionAction: false
-      recommendedActionName: 'ManualFollowUp'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && length(brownfieldDetectedSessionHostVmNames) == 0 ? [
-    {
-      code: 'SESSION_HOSTS_MISSING'
-      severity: 'High'
-      category: 'Resilience'
-      bestPractice: 'Maintain at least one healthy registered session host for active host pools.'
-      observedState: 'No registered session hosts were detected for the selected host pool.'
-      impact: 'User connectivity and maintenance readiness are at risk because no serving capacity is visible.'
-      recommendedAction: 'Investigate session host registration and add or repair session hosts if required.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'AddSessionHosts'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && operationalSummaryAuthenticationType != 'EntraID' ? [
-    {
-      code: 'HYBRID_JOIN_POSTURE_DETECTED'
-      severity: 'Informational'
-      category: 'Identity'
-      bestPractice: 'Prefer a clearly documented identity posture with least privilege and validated network dependencies.'
-      observedState: 'The selected host pool appears to use a HybridJoin posture instead of Entra ID joined session hosts.'
-      impact: 'Operational dependencies on line-of-sight identity services, DNS, and NSG rules remain important for day-2 support.'
-      recommendedAction: 'Review HybridJoin network, DNS, and identity dependencies as part of day-2 operations.'
-      canBeMitigatedBySolutionAction: false
-      recommendedActionName: 'ManualFollowUp'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && length(existingWorkspaceNames) > 0 && length(brownfieldDetectedWorkspacesWithDiagnostics) < length(existingWorkspaceNames) ? [
-    {
-      code: 'WORKSPACE_DIAGNOSTICS_PARTIAL_OR_MISSING'
-      severity: 'Medium'
-      category: 'Monitoring'
-      bestPractice: 'Enable diagnostic settings on all related AVD workspaces so workspace-level operations and publication flow are observable.'
-      observedState: 'One or more related workspaces do not appear to have diagnostic settings in the selected host pool resource group.'
-      impact: 'Workspace-level operational gaps can delay troubleshooting and reduce audit visibility.'
-      recommendedAction: 'Run AlignMonitoringPosture and verify workspace diagnostics coverage for every related workspace.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'AlignMonitoringPosture'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && length(relatedApplicationGroupNames) > 0 && length(brownfieldDetectedApplicationGroupsWithDiagnostics) < length(relatedApplicationGroupNames) ? [
-    {
-      code: 'APPLICATION_GROUP_DIAGNOSTICS_PARTIAL_OR_MISSING'
-      severity: 'Medium'
-      category: 'Monitoring'
-      bestPractice: 'Enable diagnostic settings on every related application group to capture publication and connection-plane events consistently.'
-      observedState: 'One or more related application groups do not appear to have diagnostic settings in the selected host pool resource group.'
-      impact: 'Operational visibility is inconsistent across published desktops and RemoteApps.'
-      recommendedAction: 'Run AlignMonitoringPosture and verify application group diagnostics coverage.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'AlignMonitoringPosture'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && (brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) == 0 && length(relatedApplicationGroupNames) > 0 ? [
-    {
-      code: 'APPLICATION_GROUP_ASSIGNMENTS_NOT_CONFIRMED'
-      severity: 'Informational'
-      category: 'Access'
-      bestPractice: 'Validate application group access with the authoritative collector before declaring missing access assignments.'
-      observedState: 'The managed app portal preview did not confirm role assignments across the related application groups. This preview can miss inherited, paged, or scope-specific RBAC evidence.'
-      impact: 'Portal preview evidence is incomplete; use the collector-backed operational summary before treating access as missing.'
-      recommendedAction: 'Review the collector-backed summary report or rerun operational summary collection with the managed identity that has target-scope role assignment read access.'
-      canBeMitigatedBySolutionAction: false
-      recommendedActionName: 'ReviewCollectorReport'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated && brownfieldDetectedDirectUserAssignmentCount > 0 ? [
-    {
-      code: 'DIRECT_USER_ASSIGNMENTS_DETECTED'
-      severity: 'Low'
-      category: 'Access'
-      bestPractice: 'Prefer group-based application group access over direct-user assignments for cleaner lifecycle management and access reviews.'
-      observedState: 'Direct-user assignments were detected across one or more related application groups.'
-      impact: 'Access reviews and identity lifecycle hygiene become harder as direct assignments accumulate.'
-      recommendedAction: 'Review whether direct-user assignments can be consolidated into group-based access.'
-      canBeMitigatedBySolutionAction: false
-      recommendedActionName: 'ManualFollowUp'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && operationalSummaryFslogixAssessmentProvided && brownfieldDetectedFslogixPublicNetworkAccess != 'Disabled' ? [
-    {
-      code: 'FSLOGIX_STORAGE_PUBLIC_NETWORK_ENABLED'
-      severity: 'High'
-      category: 'Security'
-      bestPractice: 'Disable public network access on FSLogix profile storage when private connectivity is the intended posture.'
-      observedState: 'The assessed FSLogix storage account does not report public network access as Disabled.'
-      impact: 'Profile storage may be more exposed than intended and can drift from the hardened private-access design.'
-      recommendedAction: 'Review FSLogix storage network exposure and reconcile private connectivity if needed.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'ReconcileFsLogixPrivateConnectivity'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && operationalSummaryFslogixAssessmentProvided && brownfieldDetectedFslogixPrivateEndpointCount == 0 ? [
-    {
-      code: 'FSLOGIX_PRIVATE_ENDPOINT_MISSING'
-      severity: 'High'
-      category: 'Network'
-      bestPractice: 'Use a private endpoint for FSLogix profile storage in private-access AVD topologies.'
-      observedState: 'No private endpoint connections were detected for the assessed FSLogix storage account.'
-      impact: 'Profile connectivity may rely on broader network exposure and is less aligned with private connectivity guidance.'
-      recommendedAction: 'Run ReconcileFsLogixPrivateConnectivity to create a private endpoint for the FSLogix storage account.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'ReconcileFsLogixPrivateConnectivity'
-    }
-  ] : [],
-  isDay2GenerateOperationalSummary && operationalSummaryFslogixAssessmentProvided && brownfieldDetectedFslogixPrivateDnsLinkState == 'Missing' ? [
-    {
-      code: 'FSLOGIX_PRIVATE_DNS_LINK_MISSING'
-      severity: 'Medium'
-      category: 'Network'
-      bestPractice: 'Link the private DNS zone used by the FSLogix file endpoint to the session host VNet when private endpoints are in use.'
-      observedState: 'The assessed private DNS zone does not appear linked to the selected VNet.'
-      impact: 'Name resolution for the private file endpoint may fail or require manual overrides.'
-      recommendedAction: 'Review private DNS linkage for the assessed FSLogix storage endpoint and VNet.'
-      canBeMitigatedBySolutionAction: true
-      recommendedActionName: 'ReconcileFsLogixPrivateConnectivity'
-    }
-  ] : []
-)
-var operationalSummaryCriticalCount = length(filter(operationalSummaryFindings, (finding) => finding.severity == 'Critical'))
-var operationalSummaryHighCount = length(filter(operationalSummaryFindings, (finding) => finding.severity == 'High'))
-var operationalSummaryMediumCount = length(filter(operationalSummaryFindings, (finding) => finding.severity == 'Medium'))
-var operationalSummaryLowCount = length(filter(operationalSummaryFindings, (finding) => finding.severity == 'Low'))
-var operationalSummaryInformationalCount = length(filter(operationalSummaryFindings, (finding) => finding.severity == 'Informational'))
-var operationalSummaryOverallStatus = operationalSummaryCriticalCount > 0
-  ? 'HighRisk'
-  : (operationalSummaryHighCount > 0
-    ? 'NeedsAttention'
-    : (operationalSummaryMediumCount > 0
-      ? 'Monitor'
-      : 'Healthy'))
-var operationalSummaryTopRecommendations = take(map(filter(operationalSummaryFindings, (finding) => finding.severity != 'Informational'), (finding) => {
-  priority: finding.severity
-  action: finding.recommendedAction
-  actionName: finding.recommendedActionName
-  category: finding.category
-  canBeMitigatedBySolutionAction: finding.canBeMitigatedBySolutionAction
-}), 5)
-var operationalSummaryObject = isDay2GenerateOperationalSummary
-  ? {
-      reportMetadata: {
-        reportVersion: '1.0'
-        generatedAtUtc: deploymentInstanceSeed
-        scope: {
-          deploymentScenario: deploymentScenario
-          day2Operation: day2Operation
-          location: location
-          resourceGroupName: effectiveExistingHostPoolResourceGroupName
-          hostPoolName: hostPoolName
-        }
-      }
-      executiveSummary: {
-        overallStatus: operationalSummaryOverallStatus
-        findingCounts: {
-          critical: operationalSummaryCriticalCount
-          high: operationalSummaryHighCount
-          medium: operationalSummaryMediumCount
-          low: operationalSummaryLowCount
-          informational: operationalSummaryInformationalCount
-        }
-        topRecommendations: operationalSummaryTopRecommendations
-        confidence: 'Medium'
-        summaryText: 'Read-only day-2 posture summary generated from host pool, application group, workspace, scaling plan, session host, and host pool diagnostic discovery.'
-      }
-      targetSummary: {
-        hostPoolName: hostPoolName
-        resourceGroupName: effectiveExistingHostPoolResourceGroupName
-        location: location
-        hostPoolType: effectiveHostPoolType
-        loadBalancerType: operationalSummaryLoadBalancerType
-        preferredAppGroupType: operationalSummaryPreferredAppGroupType
-        authenticationType: operationalSummaryAuthenticationType
-      }
-      relatedResources: {
-        applicationGroupCount: length(relatedApplicationGroupNames)
-        applicationGroups: relatedApplicationGroupNames
-        workspaceCount: length(existingWorkspaceNames)
-        workspaces: existingWorkspaceNames
-        sessionHostCount: length(brownfieldDetectedSessionHostVmNames)
-        sessionHostNames: brownfieldDetectedSessionHostVmNames
-      }
-      monitoringPosture: {
-        hostPoolDiagnosticSettingNames: brownfieldDetectedHostPoolDiagnosticSettingNames
-        hostPoolDiagnosticsState: length(brownfieldDetectedHostPoolDiagnosticSettingNames) > 0 ? 'Present' : 'Missing'
-        workspaceDiagnosticsCoverage: {
-          relatedWorkspaceCount: length(existingWorkspaceNames)
-          workspacesWithDiagnostics: brownfieldDetectedWorkspacesWithDiagnostics
-          coverageState: length(existingWorkspaceNames) == 0
-            ? 'NotApplicable'
-            : (length(brownfieldDetectedWorkspacesWithDiagnostics) == length(existingWorkspaceNames) ? 'Complete' : 'PartialOrMissing')
-        }
-        applicationGroupDiagnosticsCoverage: {
-          relatedApplicationGroupCount: length(relatedApplicationGroupNames)
-          applicationGroupsWithDiagnostics: brownfieldDetectedApplicationGroupsWithDiagnostics
-          coverageState: length(relatedApplicationGroupNames) == 0
-            ? 'NotApplicable'
-            : (length(brownfieldDetectedApplicationGroupsWithDiagnostics) == length(relatedApplicationGroupNames) ? 'Complete' : 'PartialOrMissing')
-        }
-        controlPlaneCoverage: length(brownfieldDetectedHostPoolDiagnosticSettingNames) > 0 ? 'HostPoolDetected' : 'NoneDetected'
-        guestMonitoringState: 'NotAssessedByCurrentDiscovery'
-      }
-      identityPosture: {
-        authenticationType: operationalSummaryAuthenticationType
-        desktopAssignmentCount: brownfieldDetectedDesktopAssignmentCount
-        remoteAppAssignmentCount: brownfieldDetectedRemoteAppAssignmentCount
-        directUserAssignmentCount: brownfieldDetectedDirectUserAssignmentCount
-        groupAssignmentCount: brownfieldDetectedGroupAssignmentCount
-        accessAssignmentsCoverageEvaluated: brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
-        accessAssignmentsState: !brownfieldDetectedApplicationGroupAssignmentCoverageEvaluated
-          ? 'NotEvaluatedInPortal'
-          : ((brownfieldDetectedDesktopAssignmentCount + brownfieldDetectedRemoteAppAssignmentCount) > 0 ? 'Detected' : 'NotConfirmedByPortalPreview')
-      }
-      fslogixPosture: {
-        assessmentState: operationalSummaryFslogixAssessmentProvided ? 'Assessed' : 'NotAssessed'
-        storageAccountName: brownfieldDetectedFslogixStorageAccountName
-        storageAccountResourceId: brownfieldDetectedFslogixStorageAccountResourceId
-        publicNetworkAccess: brownfieldDetectedFslogixPublicNetworkAccess
-        privateEndpointConnectionCount: brownfieldDetectedFslogixPrivateEndpointCount
-        privateDnsLinkState: brownfieldDetectedFslogixPrivateDnsLinkState
-      }
-      networkPosture: {
-        assessmentState: !empty(brownfieldDetectedNetworkVnetName) ? 'AssessedFromSelectedVnet' : 'NotAssessedByCurrentDiscovery'
-        selectedVnetName: brownfieldDetectedNetworkVnetName
-        notes: [
-          operationalSummaryFslogixAssessmentProvided ? 'FSLogix network posture was assessed from the selected storage account and optional VNet and private DNS selections in the managed app UI.' : 'Provide an FSLogix storage account and optional VNet/private DNS zone selection in the summary workflow to assess private connectivity posture.'
-        ]
-      }
-      resiliencePosture: {
-        scalingPlanNames: brownfieldDetectedScalingPlanNames
-        scalingPlanState: effectiveHostPoolType == 'Pooled'
-          ? (length(brownfieldDetectedScalingPlanNames) > 0 ? 'Present' : 'Missing')
-          : 'NotApplicable'
-        sessionHostCount: length(brownfieldDetectedSessionHostVmNames)
-        readiness: length(brownfieldDetectedSessionHostVmNames) > 0 ? 'CapacityDetected' : 'NoCapacityDetected'
-      }
-      governanceAndDrift: {
-        workspaceLinkageState: length(existingWorkspaceNames) > 0 ? 'Linked' : 'Missing'
-        applicationGroupState: length(relatedApplicationGroupNames) > 0 ? 'Present' : 'Missing'
-      }
-      bestPracticeGapRegister: operationalSummaryFindings
-      recommendations: operationalSummaryTopRecommendations
-      discoveryCoverage: {
-        assessed: [
-          'Host pool control-plane properties'
-          'Related application groups'
-          'Related workspaces'
-          'Host pool diagnostic settings'
-          'Workspace diagnostic coverage derived from resource-group resource discovery'
-          'Application group diagnostic coverage derived from resource-group resource discovery'
-          'Scaling plan attachments'
-          'Registered session host names'
-          'Application group access assignment counts derived from role assignment discovery'
-          'FSLogix storage public network access and private endpoint count when a storage account is provided'
-        ]
-        notAssessed: [
-          'Guest AMA and DCR coverage'
-          'NSG rule posture'
-          'Subnet route and firewall posture'
-          'Guest OS configuration drift'
-        ]
-      }
-    }
-  : {
-      reportMetadata: {
-        reportVersion: '1.0'
-      }
-      executiveSummary: {
-        overallStatus: 'NotRequested'
-      }
-    }
-
 module network './modules/network.bicep' = if (isNewDeployment && networkMode == 'CreateNewVnet') {
   name: 'deploy-network'
   params: {
@@ -1114,8 +786,6 @@ output scalingPlanId string = isDay2ScalingPlan ? scalingPlan!.outputs.scalingPl
 output deploymentScenario string = deploymentScenario
 output effectiveAvdMode string = effectiveAvdMode
 output avdRolesAssigned bool = isNewDeployment ? (length(desktopEffectiveAssignments) > 0 || length(remoteAppEffectiveAssignments) > 0) : isDay2UpdateAccessAssignments
-output operationalSummary object = operationalSummaryObject
-output operationalGapRegister array = isDay2GenerateOperationalSummary ? operationalSummaryFindings : []
 output brownfieldOperationSummary string = isExpandAddSessionHosts
   ? 'AddSessionHosts will create new session host VMs in the selected host pool resource group and register them against the existing host pool.'
   : (isExpandVmBaselineRemediation
@@ -1128,6 +798,4 @@ output brownfieldOperationSummary string = isExpandAddSessionHosts
         ? 'UpdateAccessAssignments will apply AVD user role assignments across the discovered desktop and RemoteApp application groups.'
         : (isDay2ReconcileFsLogixPrivateConnectivity
           ? 'ReconcileFsLogixPrivateConnectivity will create a private endpoint for the selected FSLogix storage account and optionally create and link the private DNS zone to the selected VNet.'
-          : (isDay2GenerateOperationalSummary
-            ? 'GenerateOperationalSummary is a read-only brownfield posture assessment that emits best-practice findings, discovery coverage, and recommended follow-up actions for the selected host pool.'
-            : 'NewDeployment will create a new end-to-end Azure Virtual Desktop environment.'))))))
+          : 'NewDeployment will create a new end-to-end Azure Virtual Desktop environment.')))))

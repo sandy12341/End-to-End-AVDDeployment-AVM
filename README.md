@@ -96,26 +96,7 @@ Publication status:
 - UI definition: `infra/managedapp/createUiDefinition.monitoring.json`
 - definition published in `rg-avd-managedapp-def-avm`
 
-#### 6. Managed App: Generate Operational Summary
-
-[![Open Generate Operational Summary](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview)
-
-Managed application definition: `avd-operational-summary-avm`
-
-Live definition ID:
-- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm`
-
-Use this entrypoint for:
-- inspect the brownfield operational summary without changing deployment shape
-- optionally enrich the review with FSLogix-related inputs
-- generate a read-only posture snapshot before remediation work
-
-Publication status:
-- package artifact: `infra/managedapp/dist/app-summary.zip`
-- UI definition: `infra/managedapp/createUiDefinition.summary.json`
-- definition published in `rg-avd-managedapp-def-avm`
-
-#### 7. Legacy Compatibility: Manage Existing AVD Deployment
+#### 6. Legacy Compatibility: Manage Existing AVD Deployment
 
 [![Open Manage Existing AVD Deployment](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview)
 
@@ -138,7 +119,7 @@ Publication status:
 - UI definition: `infra/managedapp/createUiDefinition.existing.json`
 - definition published in `rg-avd-managedapp-def-avm`
 
-#### 8. Legacy Compatibility: Launch Day-2 Operations
+#### 7. Legacy Compatibility: Launch Day-2 Operations
 
 [![Open Launch Day-2 Operations](https://img.shields.io/badge/Open%20In-Azure%20Portal-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview)
 
@@ -156,7 +137,6 @@ Use this entrypoint for:
 - align monitoring posture
 - update access assignments
 - reconcile FSLogix private connectivity
-- generate operational summary
 
 Monitoring alignment choices in the Day-2 wizard:
 - `ControlPlaneOnly` updates diagnostic settings on the host pool, related workspaces, and related application groups without touching existing session hosts.
@@ -172,14 +152,13 @@ Publication status:
 This repo should use its own managed-application publishing path after the AVM lane is published. Do not reuse the stable repo's production portal link or any earlier GitHub-release package URI here.
 
 **Managed App Details for the AVM lane:**
-- Publish separate managed application definitions for new environment, add-hosts, scaling, monitoring, summary, and the retained compatibility wrappers.
+- Publish separate managed application definitions for new environment, add-hosts, scaling, monitoring, and the retained compatibility wrappers.
 - Use separate package URIs from the stable lane.
 - Recommended definitions:
 - `avd-new-environment-avm`
 - `avd-add-session-hosts-avm`
 - `avd-configure-scaling-avm`
 - `avd-align-monitoring-avm`
-- `avd-operational-summary-avm`
 - `avd-manage-existing-avm`
 - `avd-day2-operations-avm`
 - Recommended validation resource group: `rg-avd-managedapp-def-avm`
@@ -259,16 +238,14 @@ The repository includes pre-built **Azure Managed Application** infrastructure (
 - **`createUiDefinition.addhosts.json`** - Focused add-session-hosts operator entrypoint
 - **`createUiDefinition.scaling.json`** - Focused scaling-plan operator entrypoint
 - **`createUiDefinition.monitoring.json`** - Focused monitoring-alignment operator entrypoint
-- **`createUiDefinition.summary.json`** - Focused operational-summary operator entrypoint
 - **`deployDefinition.bicep`** - Single managed application definition template
-- **`deployDefinitions.bicep`** - Seven-definition publish orchestrator
+- **`deployDefinitions.bicep`** - Six-definition publish orchestrator
 - **`dist/app-new.zip`** - New-environment managed-app package
 - **`dist/app-existing.zip`** - Existing-environment managed-app package
 - **`dist/app-day2.zip`** - Day-2 managed-app package
 - **`dist/app-addhosts.zip`** - Add-session-hosts managed-app package
 - **`dist/app-scaling.zip`** - Scaling-plan managed-app package
 - **`dist/app-monitoring.zip`** - Monitoring-alignment managed-app package
-- **`dist/app-summary.zip`** - Operational-summary managed-app package
 
 ### How It Works
 

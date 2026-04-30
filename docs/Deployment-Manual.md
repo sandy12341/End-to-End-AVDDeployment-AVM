@@ -176,7 +176,6 @@ Portal launch shortcuts:
 - [Open Add Session Hosts](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm/overview)
 - [Open Configure Scaling Plan](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm/overview)
 - [Open Align Monitoring Posture](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm/overview)
-- [Open Generate Operational Summary](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview)
 - [Open Manage Existing AVD Deployment](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview)
 - [Open Launch Day-2 Operations](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview)
 
@@ -210,21 +209,14 @@ These links intentionally open the published definition resource blade, which is
 - UI wrapper: `infra/managedapp/createUiDefinition.monitoring.json`
 - Intended actions: align control-plane diagnostics and optionally onboard existing session hosts to guest monitoring
 
-5. Generate Operational Summary
-- Managed application definition name: `avd-operational-summary-avm`
-- Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm`
-- Package artifact: `infra/managedapp/dist/app-summary.zip`
-- UI wrapper: `infra/managedapp/createUiDefinition.summary.json`
-- Intended actions: generate a read-only AVD posture snapshot before remediation work
-
-6. Manage Existing AVD Deployment
+5. Manage Existing AVD Deployment
 - Managed application definition name: `avd-manage-existing-avm`
 - Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm`
 - Package artifact: `infra/managedapp/dist/app-existing.zip`
 - UI wrapper: `infra/managedapp/createUiDefinition.existing.json`
 - Intended actions: broad brownfield wrapper retained for compatibility with older operator guidance
 
-7. Launch Day-2 Operations
+6. Launch Day-2 Operations
 - Managed application definition name: `avd-day2-operations-avm`
 - Live definition ID: `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm`
 - Package artifact: `infra/managedapp/dist/app-day2.zip`
@@ -463,14 +455,12 @@ pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1
 - `infra/managedapp/dist/package-addhosts/*`
 - `infra/managedapp/dist/package-scaling/*`
 - `infra/managedapp/dist/package-monitoring/*`
-- `infra/managedapp/dist/package-summary/*`
 - `infra/managedapp/dist/app-new.zip`
 - `infra/managedapp/dist/app-existing.zip`
 - `infra/managedapp/dist/app-day2.zip`
 - `infra/managedapp/dist/app-addhosts.zip`
 - `infra/managedapp/dist/app-scaling.zip`
 - `infra/managedapp/dist/app-monitoring.zip`
-- `infra/managedapp/dist/app-summary.zip`
 
 ### 3.5 `infra/modules/network.bicep` — Networking
 

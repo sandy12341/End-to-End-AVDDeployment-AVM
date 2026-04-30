@@ -72,7 +72,6 @@ if (-not $SkipPackage) {
     New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.addhosts.json' -PackageDirectoryName 'package-addhosts' -ZipFileName 'app-addhosts.zip'
     New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.scaling.json' -PackageDirectoryName 'package-scaling' -ZipFileName 'app-scaling.zip'
     New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.monitoring.json' -PackageDirectoryName 'package-monitoring' -ZipFileName 'app-monitoring.zip'
-    New-ManagedAppPackage -UiDefinitionFileName 'createUiDefinition.summary.json' -PackageDirectoryName 'package-summary' -ZipFileName 'app-summary.zip'
 }
 
 Write-Host 'Deployment artifact build complete.'

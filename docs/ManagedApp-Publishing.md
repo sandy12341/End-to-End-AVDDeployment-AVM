@@ -7,14 +7,13 @@ This runbook publishes the managed application entrypoints used by this repo:
 3. `Launch Day-2 Operations`
 4. `Configure Scaling Plan`
 5. `Align Monitoring Posture`
-6. `Generate Operational Summary`
-7. `Add Session Hosts`
+6. `Add Session Hosts`
 
-It assumes the build artifacts already come from [infra/scripts/Build-DeploymentArtifacts.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Build-DeploymentArtifacts.ps1) and the definitions are published through [infra/scripts/Publish-ManagedAppDefinitions.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Publish-ManagedAppDefinitions.ps1).
+It assumes the build artifacts already come from [infra/scripts/Build-DeploymentArtifacts.ps1](../infra/scripts/Build-DeploymentArtifacts.ps1) and the definitions are published through [infra/scripts/Publish-ManagedAppDefinitions.ps1](../infra/scripts/Publish-ManagedAppDefinitions.ps1).
 
 ## Launch From This Repo
 
-Use these links when you want to launch directly from the repository documentation instead of searching in Azure Portal.
+Use these links when you want to launch directly from repository documentation instead of searching in Azure Portal.
 
 | Entry point | Launch surface | Launch link | Notes |
 |---|---|---|---|
@@ -23,17 +22,16 @@ Use these links when you want to launch directly from the repository documentati
 | Add Session Hosts | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm/overview) | Brownfield host-pool expansion. |
 | Configure Scaling Plan | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm/overview) | Pooled host-pool scaling alignment. |
 | Align Monitoring Posture | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm/overview) | Control-plane and optional guest-monitoring alignment. |
-| Generate Operational Summary | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview) | Read-only brownfield posture review. |
 | Manage Existing AVD Deployment | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-manage-existing-avm/overview) | Legacy compatibility wrapper. |
 | Launch Day-2 Operations | Managed app definition | [Open in Azure Portal](https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-day2-operations-avm/overview) | Legacy compatibility wrapper. |
 
-The live launch inventory in [README.md](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/README.md) should stay aligned with this table.
+The live launch inventory in [README.md](../README.md) should stay aligned with this table.
 
 ## Package URI Map
 
 Use one immutable HTTPS URI per package artifact. The recommended path is the storage account static website endpoint, backed by a dedicated package storage account managed through Bicep.
 
-The publish script uploads packages with a short SHA-256 hash in the blob name, for example `app-summary-<hash>.zip`. This keeps package URLs durable for each version and forces `Microsoft.Solutions/applicationDefinitions` to ingest a fresh artifact when package content changes.
+The publish script uploads packages with a short SHA-256 hash in the blob name, for example `app-monitoring-<hash>.zip`. This keeps package URLs durable for each version and forces `Microsoft.Solutions/applicationDefinitions` to ingest a fresh artifact when package content changes.
 
 | Entry point | Definition name | Local artifact | Placeholder URI |
 |---|---|---|---|
@@ -43,13 +41,12 @@ The publish script uploads packages with a short SHA-256 hash in the blob name, 
 | Add Session Hosts | `avd-add-session-hosts-avm` | `infra/managedapp/dist/app-addhosts.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-addhosts-<hash>.zip` |
 | Configure Scaling Plan | `avd-configure-scaling-avm` | `infra/managedapp/dist/app-scaling.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-scaling-<hash>.zip` |
 | Align Monitoring Posture | `avd-align-monitoring-avm` | `infra/managedapp/dist/app-monitoring.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-monitoring-<hash>.zip` |
-| Generate Operational Summary | `avd-operational-summary-avm` | `infra/managedapp/dist/app-summary.zip` | `https://<storage-account>.<web-zone>.web.core.windows.net/<path-prefix>/app-summary-<hash>.zip` |
 
-The storage account keeps `allowBlobPublicAccess = false`. Public package retrieval comes from the static website endpoint instead, while uploads continue to use Microsoft Entra authentication.
+The storage account keeps `allowBlobPublicAccess = false`. Public package retrieval comes from the static website endpoint, while uploads continue to use Microsoft Entra authentication.
 
 ## Recommended Publish Inputs
 
-The default publish flow now derives package URLs from a storage account and container instead of requiring seven caller-supplied URIs.
+The default publish flow derives package URLs from a storage account and container instead of requiring caller-supplied URIs.
 
 ```powershell
 $DefinitionResourceGroup = 'rg-avd-managedapp-def-avm'
@@ -60,16 +57,11 @@ $ContainerName = 'managedapp-packages'
 $PrincipalId = '<entra-object-id>'
 ```
 
-If needed, [infra/scripts/Publish-ManagedAppDefinitions.ps1](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/scripts/Publish-ManagedAppDefinitions.ps1) still supports the legacy explicit-URI path, but that is now the escape hatch rather than the primary workflow.
+If needed, [infra/scripts/Publish-ManagedAppDefinitions.ps1](../infra/scripts/Publish-ManagedAppDefinitions.ps1) still supports the legacy explicit-URI path, but that is now the escape hatch rather than the primary workflow.
 
 ## Current Environment Starter Block
 
 The values below match the current Azure CLI context on this workstation at the time this runbook was updated.
-
-Important:
-- Azure extension authentication context and Azure CLI authentication context are separate systems.
-- The commands in this runbook use Azure CLI.
-- At update time, both contexts pointed to the same subscription.
 
 ```powershell
 az account set --subscription '830ef649-535d-4642-9436-356f9619c2e4'
@@ -90,16 +82,7 @@ $Day2DefinitionName = 'avd-day2-operations-avm'
 $AddSessionHostsDefinitionName = 'avd-add-session-hosts-avm'
 $ScalingDefinitionName = 'avd-configure-scaling-avm'
 $MonitoringDefinitionName = 'avd-align-monitoring-avm'
-$SummaryDefinitionName = 'avd-operational-summary-avm'
 ```
-
-At update time, `stavdmapkg830ef64901` passed `az storage account check-name` in the current tenant and subscription context.
-
-The only required edits before upload and publish are:
-
-1. keep or change `$StorageAccountName`
-2. optionally change `$ContainerName`
-3. keep or override the default definition names if needed
 
 ## Step 1: Build The Artifacts
 
@@ -115,14 +98,11 @@ Expected outputs:
 - `infra/managedapp/dist/app-addhosts.zip`
 - `infra/managedapp/dist/app-scaling.zip`
 - `infra/managedapp/dist/app-monitoring.zip`
-- `infra/managedapp/dist/app-summary.zip`
 - `infra/managedapp/dist/deployDefinitions.json`
 
-## Step 1.5: Provision Dedicated Package Storage
+## Step 2: Provision Dedicated Package Storage
 
-The current subscription snapshot used during planning did not show an existing `rg-avd-managedapp-def-avm`, and the visible storage accounts had `publicNetworkAccess = Disabled`. For managed application package hosting, prefer a dedicated storage account created specifically for package publication.
-
-Provision it with [infra/managedapp/packageStorage.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/managedapp/packageStorage.bicep):
+Provision package hosting with [infra/managedapp/packageStorage.bicep](../infra/managedapp/packageStorage.bicep):
 
 ```powershell
 $PackageStorageResourceGroup = 'rg-avd-managedapp-packages-avm'
@@ -132,6 +112,7 @@ az group create \
   --location $Location
 
 az deployment group create \
+  --name managedapp-package-storage \
   --resource-group $PackageStorageResourceGroup \
   --template-file infra/managedapp/packageStorage.bicep \
   --parameters \
@@ -140,49 +121,7 @@ az deployment group create \
     containerName=$ContainerName
 ```
 
-This storage account is configured to:
-
-- keep blob public access disabled at the account level
-- enable the static website endpoint for durable package fetches
-- publish package blobs under the `$web` container with the configured path prefix
-- disable shared key access
-- allow HTTPS-only access
-- keep public network access enabled so Azure can fetch package URIs directly
-
-Because shared key access is disabled, uploads should use Microsoft Entra authentication plus data-plane RBAC on the storage account. At minimum, the publishing identity needs `Storage Blob Data Owner` or `Storage Blob Data Contributor` scoped to the package storage account.
-
-## Step 2: Upload The Packages And Resolve Durable URIs
-
-The default path is to let the publish script provision or reconcile the package storage account through Bicep, upload the seven zip files with Entra-authenticated data-plane access, and then publish the managed application definitions using content-addressed blob URLs.
-
-The package URL pattern is:
-
-```powershell
-$WebEndpoint = az storage account show \
-  --name $StorageAccountName \
-  --resource-group $PackageStorageResourceGroup \
-  --query primaryEndpoints.web \
-  -o tsv
-
-"$WebEndpoint$ContainerName/<package-name>-<hash>.zip"
-```
-
-## Step 3: Preview The Definition Deployment
-
-Run `what-if` before publishing:
-
-```powershell
-pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
-  -ResourceGroupName $DefinitionResourceGroup \
-  -Location $Location \
-  -PrincipalId $PrincipalId \
-  -PackageStorageAccountName $StorageAccountName \
-  -PackageStorageResourceGroup $PackageStorageResourceGroup \
-  -PackageContainerName $ContainerName \
-  -WhatIf
-```
-
-## Step 4: Publish The Definitions
+## Step 3: Publish Definitions
 
 ```powershell
 pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
@@ -194,181 +133,11 @@ pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
   -PackageContainerName $ContainerName
 ```
 
-This publishes seven managed application definitions through [infra/managedapp/deployDefinitions.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/managedapp/deployDefinitions.bicep).
+This publishes six managed application definitions through [infra/managedapp/deployDefinitions.bicep](../infra/managedapp/deployDefinitions.bicep).
 
-If you need to publish from pre-existing immutable URLs outside Azure Blob Storage, pass the seven explicit `*PackageFileUri` parameters instead.
+If you need to publish from pre-existing immutable URLs outside Azure Blob Storage, pass the six explicit `*PackageFileUri` parameters instead.
 
-If the Generate Operational Summary definition must ingest a new `mainTemplate.json` shape, add `-RecreateSummaryDefinition`. Azure can report a successful update to `packageFileUri` while retaining the previously ingested `ApplicationResourceTemplate`; recreating only `avd-operational-summary-avm` forces a fresh package ingestion without changing the other managed app definitions.
-
-## Operational Summary Assignment Discovery
-
-The `Generate Operational Summary` managed app uses `CreateUiDefinition` ARM API calls only as portal-preview evidence. It must not declare application-group assignments missing from that preview alone because the portal flow can miss inherited, paged, or permission-constrained RBAC data. Do not use `Microsoft.Resources/deploymentScripts` for this read-only discovery path in this environment: Azure Deployment Scripts requires backing storage access that uses storage account keys, and this subscription blocks key-based storage authentication by policy. Authoritative access discovery belongs in the Operational Summary collector runtime.
-
-The collector validates assigned AVD group principals through Microsoft Graph. Grant the collector managed identity approved Graph application permission `Group.Read.All` before treating group validation as complete. If Graph cannot be read, the generated report records `GROUP_PRINCIPAL_NOT_READABLE` and does not claim that the group is missing.
-
-The Operational Summary collector can either create a dedicated user-assigned managed identity or reuse an existing read-only discovery identity such as `avd-rbac-discovery`. Reuse is secure only when the identity is dedicated to discovery/reporting and does not hold write-capable roles on the target AVD environment. To reuse it, resolve the identity values and pass all three existing-identity parameters to [infra/operational-summary/main.bicep](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/operational-summary/main.bicep):
-
-```powershell
-$DiscoveryIdentity = az identity list \
-  --query "[?name=='avd-rbac-discovery'] | [0]" \
-  -o json | ConvertFrom-Json
-
-az deployment group create \
-  --resource-group '<collector-resource-group>' \
-  --template-file infra/operational-summary/main.bicep \
-  --parameters \
-    existingCollectorIdentityResourceId=$DiscoveryIdentity.id \
-    existingCollectorIdentityClientId=$DiscoveryIdentity.clientId \
-    existingCollectorIdentityPrincipalId=$DiscoveryIdentity.principalId
-```
-
-Keep the target-scope permissions narrow:
-
-| Permission area | Recommended scope | Purpose |
-|---|---|---|
-| AVD resource read | Target AVD resource group | Read host pool, workspace, application groups, and related resources. |
-| Role assignment read | Target AVD resource group; subscription only if subscription-inherited assignments must be authoritative | Discover direct and inherited `Desktop Virtualization User` assignments. |
-| Report storage data plane | Collector report storage account only | Write `summary.json` and `summary.html` using managed identity. |
-| Microsoft Graph | Approved application permission `Group.Read.All` | Validate assigned group principals as existing, missing, unreadable, or not evaluated. |
-
-Do not assign `Owner`, `Contributor`, or `User Access Administrator` to the collector identity. If future remediation is added, use a separate remediation identity behind approval rather than expanding `avd-rbac-discovery`.
-
-When `enableManagedAppEventGridTrigger` is `true`, the collector deployment creates an Event Grid system topic for subscription resource events and a webhook event subscription filtered to `Microsoft.Solutions/applications/write`. A successful managed app create/update event posts to the `GenerateOperationalSummaryFromManagedAppEvent` Function route, which reads the managed app parameters, reconstructs the selected host pool/application group/workspace context, and writes the JSON/HTML report artifacts. Keep this disabled for initial manual validation, then enable it after the Function code is deployed and the collector identity has target-scope read access plus report storage writes.
-
-### Persona Status
-
-| Persona | Done | Pending | Current status |
-|---|---|---|---|
-| AVD / SysAdmin | Combined JSON/HTML report artifacts; host pool context; related application group discovery; discovery confidence; finding counts; initial operational follow-up actions; opt-in managed app Event Grid webhook invocation. | Broader VDI posture analyzers for session host health, scaling configuration, image/version drift, FSLogix storage posture, monitoring coverage, capacity signals, and report index/latest-link handoff from the managed app launch. | In progress |
-| Security Admin | ARM role assignment discovery at subscription, resource group, and application group scopes; direct and inherited `Desktop Virtualization User` assignment evidence; Microsoft Graph validation states for `Exists`, `NotFound`, `NotReadable`, and incomplete validation. | Tenant admin consent for Graph `Group.Read.All` where required; security baseline checks for privileged role exposure, stale assignments, private endpoint/storage posture, diagnostic coverage, alert posture, and drift. | In progress |
-| Helpdesk Admin | Initial support-oriented report view with application groups available for access review, collected access evidence counts, validated assigned group counts, and escalation guidance for launch/access issues. | User/session lookup, connection failure triage, profile/FSLogix symptom signals, separate helpdesk-friendly HTML output, and sanitized escalation evidence bundles. | Initial view implemented |
-| Platform / Managed App Operator | Seven managed app definitions packaged/published; operational summary package supports fresh ingestion with `-RecreateSummaryDefinition`; collector identity reuse documented; private blob report writing implemented; manual collector validation succeeded; failed Y1 validation resources cleaned up; Event Grid system topic and managed app write subscription enabled in the validation subscription. | Validate a real `Microsoft.Solutions/applications/write` event after an installed managed application instance exists; document the exact customer-facing report retrieval flow; add report index/latest-link handoff. | Event Grid enabled; awaiting managed app instance event |
-
-Keep the status labels conservative: the current collector is authoritative for AVD application group assignment evidence once ARM/RBAC permissions are in place, but the holistic VDI posture summary and customer-facing report retrieval flow still need validation before the persona experience should be described as complete.
-
-### Collector Manual Validation Path
-
-Start collector validation with Event Grid disabled. This proves Function deployment, managed identity, ARM/RBAC discovery, HTML rendering, and private blob writes before managed app events can create automatic runs.
-
-Use [infra/operational-summary/main.validation.bicepparam](c:/Users/raavisandeep/OneDrive%20-%20Microsoft/Documents/Personal%20Labs/E2EAVDDeployment-AVM/infra/operational-summary/main.validation.bicepparam) for the known validation identity and safe defaults:
-
-```powershell
-$SubscriptionId = '830ef649-535d-4642-9436-356f9619c2e4'
-$CollectorResourceGroup = '<collector-resource-group>'
-$Location = 'westus3'
-
-az account set --subscription $SubscriptionId
-az group create --name $CollectorResourceGroup --location $Location
-
-az deployment group what-if `
-  --resource-group $CollectorResourceGroup `
-  --template-file infra/operational-summary/main.bicep `
-  --parameters infra/operational-summary/main.validation.bicepparam
-
-az deployment group create `
-  --resource-group $CollectorResourceGroup `
-  --template-file infra/operational-summary/main.bicep `
-  --parameters infra/operational-summary/main.validation.bicepparam
-```
-
-After the Function code is deployed, invoke the manual endpoint first:
-
-```powershell
-$FunctionAppName = '<function-app-name-from-deployment-output>'
-$FunctionKey = az functionapp function keys list `
-  --resource-group $CollectorResourceGroup `
-  --name $FunctionAppName `
-  --function-name GenerateOperationalSummary `
-  --query default `
-  -o tsv
-
-$RequestBody = @{
-  hostPoolResourceId = '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/hostPools/hp-avd-avd1-dev33'
-  applicationGroupResourceIds = @(
-    '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/applicationGroups/dag-avd-avd1-dev'
-  )
-  workspaceResourceId = '/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/workspaces/ws-avd-avd1-dev'
-  reportName = 'manual-validation-hp-avd-avd1-dev33'
-} | ConvertTo-Json -Depth 10
-
-Invoke-RestMethod `
-  -Method Post `
-  -Uri "https://$FunctionAppName.azurewebsites.net/api/operational-summary?code=$FunctionKey" `
-  -ContentType 'application/json' `
-  -Body $RequestBody
-```
-
-Validation is successful only after the report storage container contains both `summary.json` and `summary.html` for the run, and the HTML report shows persona views plus evidence-backed findings. Enable `enableManagedAppEventGridTrigger` only after this manual path succeeds.
-
-Each successful collector run also writes a stable `latest.json` manifest for the selected host pool. The manifest points to the latest private JSON and HTML report blobs without making the container public.
-
-```powershell
-$LatestFunctionKey = az functionapp function keys list `
-  --resource-group $CollectorResourceGroup `
-  --name $FunctionAppName `
-  --function-name GetLatestOperationalSummary `
-  --query default `
-  -o tsv
-
-$EncodedHostPoolResourceId = [System.Uri]::EscapeDataString('/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/AVD-MVP-0427/providers/Microsoft.DesktopVirtualization/hostPools/hp-avd-avd1-dev33')
-
-Invoke-RestMethod `
-  -Method Get `
-  -Uri "https://$FunctionAppName.azurewebsites.net/api/operational-summary/latest?hostPoolResourceId=$EncodedHostPoolResourceId&code=$LatestFunctionKey"
-```
-
-The latest manifest route is function-key protected and returns private blob artifact metadata. Report blobs remain private and require approved storage data-plane access to open directly.
-
-### Collector Event Grid Validation Path
-
-Use [infra/operational-summary/main.eventgrid.validation.bicepparam](../infra/operational-summary/main.eventgrid.validation.bicepparam) after manual validation succeeds. This keeps the default/manual parameter file safe while making the managed application write-event path repeatable.
-
-```powershell
-$SubscriptionId = '830ef649-535d-4642-9436-356f9619c2e4'
-$CollectorResourceGroup = 'rg-avd-ops-summary-validation'
-
-az account set --subscription $SubscriptionId
-
-az deployment group what-if `
-  --resource-group $CollectorResourceGroup `
-  --template-file infra/operational-summary/main.bicep `
-  --parameters infra/operational-summary/main.eventgrid.validation.bicepparam
-
-az deployment group create `
-  --resource-group $CollectorResourceGroup `
-  --template-file infra/operational-summary/main.bicep `
-  --parameters infra/operational-summary/main.eventgrid.validation.bicepparam
-```
-
-Expected Event Grid resources:
-
-- System topic: `egst-avd-ops-summary-hvq4vogx`
-- Event subscription: `evs-avd-ops-summary-hvq4vogx`
-- Source: subscription `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4`
-- Included event type: `Microsoft.Resources.ResourceWriteSuccess`
-- Advanced filter: `data.operationName` equals `Microsoft.Solutions/applications/write`
-- Destination: `GenerateOperationalSummaryFromManagedAppEvent` on `funcfc-avd-ops-summary-hvq4vogx`
-
-The validation subscription currently has managed application definitions but no installed `Microsoft.Solutions/applications` instance. Event Grid resource provisioning can be validated immediately, but an end-to-end write-event report requires launching or updating an installed managed application instance so Azure emits a matching `Microsoft.Solutions/applications/write` event.
-
-After an Event Grid-triggered run completes, use `GetLatestOperationalSummary` with the selected host pool resource ID to retrieve the latest manifest and locate the corresponding private `summary.html` artifact.
-
-After changing summary assignment discovery logic, rebuild the artifacts and publish with `-RecreateSummaryDefinition` so the managed app definition ingests the new package contents:
-
-```powershell
-pwsh ./infra/scripts/Build-DeploymentArtifacts.ps1 -SkipDirectTemplate
-
-pwsh ./infra/scripts/Publish-ManagedAppDefinitions.ps1 \
-  -ResourceGroupName $DefinitionResourceGroup \
-  -Location $Location \
-  -PrincipalId $PrincipalId \
-  -PackageStorageAccountName $StorageAccountName \
-  -PackageStorageResourceGroup $PackageStorageResourceGroup \
-  -PackageContainerName $ContainerName \
-  -RecreateSummaryDefinition
-```
-
-## Step 5: Verify The Published Definitions
+## Step 4: Verify The Published Definitions
 
 ```powershell
 $NewEnvironmentDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-new-environment-avm"
@@ -377,7 +146,6 @@ $Day2DefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$De
 $AddSessionHostsDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm"
 $ScalingDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm"
 $MonitoringDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm"
-$SummaryDefinitionId = "/subscriptions/<definition-subscription>/resourceGroups/$DefinitionResourceGroup/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm"
 
 az resource show --ids $NewEnvironmentDefinitionId
 az resource show --ids $ExistingEnvironmentDefinitionId
@@ -385,10 +153,9 @@ az resource show --ids $Day2DefinitionId
 az resource show --ids $AddSessionHostsDefinitionId
 az resource show --ids $ScalingDefinitionId
 az resource show --ids $MonitoringDefinitionId
-az resource show --ids $SummaryDefinitionId
 ```
 
-## Step 6: Publish Repo-Facing Portal Links
+## Step 5: Publish Repo-Facing Portal Links
 
 After the definitions exist, update the repo docs with the real operator-facing launch URLs for:
 
@@ -398,34 +165,8 @@ After the definitions exist, update the repo docs with the real operator-facing 
 4. `Configure Scaling Plan`
 5. `Add Session Hosts`
 6. `Align Monitoring Posture`
-7. `Generate Operational Summary`
 
 Do not publish placeholder URLs in the repo before the definitions are live.
-
-## Operational Summary Outputs
-
-For the portal-only `Generate Operational Summary` deployment, the immediate ARM outputs are on the managed application deployment inside the managed resource group, not on the application definition resource in `rg-avd-managedapp-def-avm`.
-
-After an operator runs the definition:
-
-1. Open the managed application instance.
-2. Open the linked managed resource group.
-3. Open `Deployments`.
-4. Open the inner deployment created for the selected host pool.
-5. Open `Outputs`.
-
-The output keys to look for are:
-
-- `operationalSummaryHtml`: the rendered HTML report body with the summary table, recommendations, and findings.
-- `operationalSummaryHtmlDataUri`: a `data:text/html;base64,...` URI for opening the same report directly in a browser or another viewer that accepts data URIs.
-
-If the outer deployment under `rg-avd-managedapp-def-avm` shows empty outputs, that is expected. The actual report outputs live on the nested deployment in the managed resource group.
-
-For the collector-backed report, the durable outputs are private blob artifacts in the collector report storage account. The preferred retrieval flow is:
-
-1. Call `GetLatestOperationalSummary` with the selected host pool resource ID.
-2. Read the returned `ReportArtifacts` entries for `Json`, `Html`, and `LatestManifest`.
-3. Open the `Html` blob only with approved storage data-plane access; do not make the container public.
 
 ## Current Published State
 
@@ -442,7 +183,6 @@ Package artifacts in active use:
 - `app-addhosts.zip`
 - `app-scaling.zip`
 - `app-monitoring.zip`
-- `app-summary.zip`
 
 Published definition IDs:
 
@@ -452,7 +192,6 @@ Published definition IDs:
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm`
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm`
 - `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm`
-- `/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm`
 
 Operator-facing portal links:
 
@@ -462,18 +201,15 @@ Operator-facing portal links:
 - Add Session Hosts: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-add-session-hosts-avm/overview`
 - Configure Scaling Plan: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-configure-scaling-avm/overview`
 - Align Monitoring Posture: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-align-monitoring-avm/overview`
-- Generate Operational Summary: `https://portal.azure.com/#@1c9feb84-3b85-4498-a8c7-f096754e118d/resource/subscriptions/830ef649-535d-4642-9436-356f9619c2e4/resourceGroups/rg-avd-managedapp-def-avm/providers/Microsoft.Solutions/applicationDefinitions/avd-operational-summary-avm/overview`
 
 Focused wizard runtime checklist:
 
 - `Add Session Hosts`: expected stepper is `Basics`, `Existing AVD target`, `Instance details`, `Networking`, `Local admin`, `Authentication`, `Review`.
 - `Configure Scaling Plan`: expected stepper is `Basics`, `Existing AVD target`, `Scaling plan`, `Review`.
 - `Align Monitoring Posture`: expected stepper is `Basics`, `Existing AVD target`, `Monitoring posture`, `Review`.
-- `Generate Operational Summary`: expected stepper is `Basics`, `Existing AVD target`, `Optional FSLogix enrichment`, `Review`.
 
 Operational notes:
 
-- package hosting now uses Azure Storage static website URLs rooted at `https://stavdmapkg830ef64901.z1.web.core.windows.net/managedapp-packages/`
-- uploads still use Microsoft Entra authentication; shared key access remains disabled
-- package ingestion succeeded through the managed application definition deployment even though `az resource show` does not surface `properties.packageFileUri` after publication
-- the add-session-hosts definition was published successfully at `2026-04-27T22:25:21.830974+00:00`
+- package hosting uses Azure Storage static website URLs rooted at `https://stavdmapkg830ef64901.z1.web.core.windows.net/managedapp-packages/`
+- uploads use Microsoft Entra authentication; shared key access remains disabled
+- package ingestion succeeds through managed application definition deployment even though `az resource show` does not surface `properties.packageFileUri` after publication

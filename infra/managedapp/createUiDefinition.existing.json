@@ -259,10 +259,6 @@
                 {
                   "label": "Reconcile FSLogix private connectivity",
                   "value": "ReconcileFsLogixPrivateConnectivity"
-                },
-                {
-                  "label": "Generate operational summary",
-                  "value": "GenerateOperationalSummary"
                 }
               ]
             }
@@ -271,7 +267,7 @@
             "name": "day2OperationNote",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "Day-2 operations now includes scaling plan management, monitoring alignment, access assignment updates, FSLogix private connectivity reconciliation, and a no-change operational summary path."
+              "text": "Day-2 operations now includes scaling plan management, monitoring alignment, access assignment updates, and FSLogix private connectivity reconciliation."
             }
           }
         ]

@@ -283,10 +283,6 @@
                 {
                   "label": "Reconcile FSLogix private connectivity",
                   "value": "ReconcileFsLogixPrivateConnectivity"
-                },
-                {
-                  "label": "Generate operational summary",
-                  "value": "GenerateOperationalSummary"
                 }
               ]
             }
@@ -295,7 +291,7 @@
             "name": "day2OperationNote",
             "type": "Microsoft.Common.TextBlock",
             "options": {
-              "text": "Day-2 operations now includes scaling plan management, monitoring alignment, access assignment updates, FSLogix private connectivity reconciliation, and a no-change operational summary path."
+              "text": "Day-2 operations now includes scaling plan management, monitoring alignment, access assignment updates, and FSLogix private connectivity reconciliation."
             }
           }
         ]
@@ -872,16 +868,8 @@
       {
         "name": "fslogixSettings",
         "label": "FSLogix and network assessment",
-        "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), or(equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary')))]",
+        "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'ReconcileFsLogixPrivateConnectivity'))]",
         "elements": [
-          {
-            "name": "fslogixSettingsNote",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary')]",
-            "options": {
-              "text": "Optional but recommended for the summary report: select the FSLogix storage account, the session-host VNet, and optionally the private DNS zone to assess storage exposure and private connectivity posture."
-            }
-          },
           {
             "name": "fslogixStorageAccount",
             "type": "Microsoft.Solutions.ResourceSelector",
@@ -1014,78 +1002,6 @@
             "type": "Microsoft.Common.TextBlock",
             "options": {
               "text": "[concat('Target host pool resource group: ', if(contains(steps('brownfieldTarget').selectedHostPool, 'id'), last(take(split(steps('brownfieldTarget').selectedHostPool.id, '/'), 5)), 'Unknown'), '. Detected host pool type: ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '. Application groups discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Workspaces discovered in scope: ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryExecutive",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Executive summary preview: selected host pool ', if(contains(steps('brownfieldTarget').selectedHostPool, 'name'), steps('brownfieldTarget').selectedHostPool.name, 'Unknown'), '; host pool diagnostics settings discovered ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '; scaling plans discovered in scope ', string(length(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')))), '; session hosts discovered ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '. This action is read-only and emits a structured best-practice report.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryTargetSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Target summary: location ', if(contains(steps('brownfieldTarget').selectedHostPool, 'location'), steps('brownfieldTarget').selectedHostPool.location, 'Unknown'), '; host pool type ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'hostPoolType')), steps('brownfieldTarget').selectedHostPoolApi.properties.hostPoolType, 'Unknown'), '; load balancer ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'loadBalancerType')), steps('brownfieldTarget').selectedHostPoolApi.properties.loadBalancerType, 'Unknown'), '; preferred app group ', if(and(contains(steps('brownfieldTarget').selectedHostPoolApi, 'properties'), contains(steps('brownfieldTarget').selectedHostPoolApi.properties, 'preferredAppGroupType')), steps('brownfieldTarget').selectedHostPoolApi.properties.preferredAppGroupType, 'Unknown'), '.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryResourcesSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Related resources preview: application groups discovered in scope ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '; workspaces discovered in scope ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '; session hosts discovered ', string(length(if(contains(steps('brownfieldTarget').sessionHostsApi, 'value'), steps('brownfieldTarget').sessionHostsApi.value, parse('[]')))), '.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryGapSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Gap register preview: host pool diagnostics settings discovered ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '; scaling plans discovered in scope ', string(length(if(contains(steps('brownfieldTarget').scalingPlansApi, 'value'), steps('brownfieldTarget').scalingPlansApi.value, parse('[]')))), '; related resources and best-practice gaps will be returned in the deployment outputs.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryMonitoringExpandedSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Monitoring coverage preview: host pool diagnostic settings discovered ', string(length(if(contains(steps('brownfieldTarget').hostPoolDiagnosticsApi, 'value'), steps('brownfieldTarget').hostPoolDiagnosticsApi.value, parse('[]')))), '; workspaces discovered in scope ', string(length(if(contains(steps('brownfieldTarget').workspacesApi, 'value'), steps('brownfieldTarget').workspacesApi.value, parse('[]')))), '; application groups discovered in scope ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Detailed diagnostics coverage is returned in the deployment outputs.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryAccessSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Access posture preview: resource-group role assignments discovered in scope ', string(length(if(contains(steps('brownfieldTarget').resourceGroupRoleAssignmentsApi, 'value'), steps('brownfieldTarget').resourceGroupRoleAssignmentsApi.value, parse('[]')))), '; related application groups discovered in scope ', string(length(if(contains(steps('brownfieldTarget').appGroupsApi, 'value'), steps('brownfieldTarget').appGroupsApi.value, parse('[]')))), '. Detailed assignment posture is returned in the deployment outputs.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryFslogixSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[if(contains(steps('fslogixSettings').fslogixStorageAccount, 'id'), concat('FSLogix posture preview: storage account ', steps('fslogixSettings').fslogixStorageAccount.name, '; public network access ', if(contains(steps('fslogixSettings').fslogixStorageApi, 'properties'), steps('fslogixSettings').fslogixStorageApi.properties.publicNetworkAccess, 'Unknown'), '; private endpoint connections discovered ', string(length(if(contains(steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi, 'value'), steps('fslogixSettings').fslogixPrivateEndpointConnectionsApi.value, parse('[]')))), '. Detailed FSLogix and private DNS posture is returned in the deployment outputs.'), 'FSLogix posture preview: not assessed because no storage account was provided for the summary workflow.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryFollowUpSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "[concat('Recommended follow-up: review the deployment outputs for the formal gap register and recommendation set. If host pool diagnostics are missing, consider AlignMonitoringPosture. If the host pool is pooled and no scaling plan is attached, consider ConfigureScalingPlan.')]"
-            }
-          },
-          {
-            "name": "operationalSummaryCoverageSection",
-            "type": "Microsoft.Common.TextBlock",
-            "visible": "[and(equals(steps('deploymentScenario').deploymentScenario, 'Day2Operations'), equals(steps('day2Operation').day2Operation, 'GenerateOperationalSummary'))]",
-            "options": {
-              "text": "Assessment coverage: this report now assesses host pool properties, related application groups and workspaces, host pool diagnostic settings, derived workspace and application-group diagnostics coverage in the host pool resource group, scaling plan attachments, registered session hosts, derived application-group role assignments in the host pool resource group, and FSLogix private-connectivity posture when a storage account is provided. It still does not assess guest AMA or DCR coverage, NSG rules, routes, firewalls, or guest OS drift."
             }
           }
         ]
